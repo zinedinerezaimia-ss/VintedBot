@@ -1,178 +1,256 @@
 """
-Analyseur d'images simplifié et fiable
-Utilise uniquement l'analyse d'image sans APIs externes
+Analyseur d'images avec Hugging Face Vision API (gratuit)
 """
 
+import requests
+import base64
 from PIL import Image
-from collections import Counter
-import os
+import json
+import time
 
 class ImageAnalyzer:
-    """Analyse les photos de produits de manière fiable"""
+    """Analyse les photos avec Hugging Face Vision API"""
     
     def __init__(self):
-        pass
+        # API Hugging Face gratuite (pas besoin de token pour usage limité)
+        self.caption_api = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
+        self.vqa_api = "https://api-inference.huggingface.co/models/dandelin/vilt-b32-finetuned-vqa"
     
     def analyze_product(self, image_path):
-        """
-        Analyse une image et retourne les infos du produit
-        Méthode 100% fiable sans dépendance externe
-        """
-        print("🔍 Analyse de l'image...")
+        """Analyse complète d'un produit"""
+        print("🔍 Analyse de l'image avec IA...")
         
         try:
-            img = Image.open(image_path)
+            # Étape 1 : Obtenir une description générale
+            description = self._get_image_caption(image_path)
+            print(f"   Description IA : {description}")
             
-            # Analyser la couleur dominante
-            couleur = self._detect_color(img)
+            # Étape 2 : Poser des questions spécifiques
+            product_type = self._ask_question(image_path, "What type of clothing is this? shirt, sweater, pants, dress, shoes, or jacket?")
+            color = self._ask_question(image_path, "What is the main color?")
+            brand = self._ask_question(image_path, "What brand logo is visible?")
             
-            # Détecter le type par les dimensions
-            product_type = self._detect_type(img)
+            print(f"   Type détecté : {product_type}")
+            print(f"   Couleur : {color}")
+            print(f"   Marque : {brand}")
             
-            result = {
-                "type": product_type,
-                "marque": "À préciser",
-                "couleur": couleur,
-                "etat": "Bon",
-                "taille": "À préciser",
-                "matiere": "À préciser",
-                "details": f"Article {couleur} en bon état visuel"
-            }
+            # Étape 3 : Parser et nettoyer les résultats
+            result = self._build_product_info(description, product_type, color, brand)
             
-            print(f"✅ Produit analysé : {result['type']} {result['couleur']}")
+            print(f"✅ Analyse terminée : {result['type']} {result['couleur']}")
             return result
             
         except Exception as e:
-            print(f"⚠️ Erreur analyse : {e}")
+            print(f"⚠️ Erreur IA, utilisation analyse basique : {e}")
+            return self._fallback_analysis(image_path)
+    
+    def _get_image_caption(self, image_path):
+        """Obtient une description de l'image"""
+        try:
+            with open(image_path, "rb") as f:
+                data = f.read()
+            
+            response = requests.post(
+                self.caption_api,
+                headers={"Content-Type": "application/octet-stream"},
+                data=data,
+                timeout=30
+            )
+            
+            if response.status_code == 503:
+                # Modèle en chargement, attendre un peu
+                print("   ⏳ Modèle en chargement, 2e tentative...")
+                time.sleep(3)
+                response = requests.post(
+                    self.caption_api,
+                    headers={"Content-Type": "application/octet-stream"},
+                    data=data,
+                    timeout=30
+                )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    return result[0].get('generated_text', '')
+            
+            return ""
+            
+        except Exception as e:
+            print(f"   ⚠️ Caption API erreur : {e}")
+            return ""
+    
+    def _ask_question(self, image_path, question):
+        """Pose une question sur l'image (Visual Question Answering)"""
+        try:
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+            
+            # Convertir en base64 pour l'API VQA
+            image_b64 = base64.b64encode(image_data).decode()
+            
+            payload = {
+                "inputs": {
+                    "question": question,
+                    "image": image_b64
+                }
+            }
+            
+            response = requests.post(
+                self.vqa_api,
+                headers={"Content-Type": "application/json"},
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 503:
+                time.sleep(3)
+                response = requests.post(
+                    self.vqa_api,
+                    headers={"Content-Type": "application/json"},
+                    json=payload,
+                    timeout=30
+                )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    return result[0].get('answer', '').lower()
+            
+            return ""
+            
+        except Exception as e:
+            print(f"   ⚠️ VQA erreur : {e}")
+            return ""
+    
+    def _build_product_info(self, description, product_type, color, brand):
+        """Construit les infos produit à partir des réponses"""
+        
+        # Nettoyer et mapper le type
+        type_mapping = {
+            "shirt": "t-shirt",
+            "t-shirt": "t-shirt",
+            "tshirt": "t-shirt",
+            "jersey": "maillot",
+            "football jersey": "maillot",
+            "soccer jersey": "maillot",
+            "sweater": "pull",
+            "pullover": "pull",
+            "hoodie": "sweat",
+            "pants": "pantalon",
+            "trousers": "pantalon",
+            "jeans": "jean",
+            "dress": "robe",
+            "shoes": "chaussures",
+            "sneakers": "baskets",
+            "jacket": "veste",
+            "coat": "manteau"
+        }
+        
+        detected_type = "vêtement"
+        for keyword, french_type in type_mapping.items():
+            if keyword in product_type.lower() or keyword in description.lower():
+                detected_type = french_type
+                break
+        
+        # Détecter "jersey" ou "football" dans la description
+        if "jersey" in description.lower() or "football" in description.lower() or "soccer" in description.lower():
+            detected_type = "maillot"
+        
+        # Nettoyer la couleur
+        color_mapping = {
+            "white": "blanc",
+            "black": "noir",
+            "red": "rouge",
+            "blue": "bleu",
+            "green": "vert",
+            "yellow": "jaune",
+            "gray": "gris",
+            "grey": "gris",
+            "pink": "rose",
+            "purple": "violet",
+            "orange": "orange",
+            "brown": "marron",
+            "beige": "beige"
+        }
+        
+        detected_color = "à préciser"
+        for eng, fr in color_mapping.items():
+            if eng in color.lower() or eng in description.lower():
+                detected_color = fr
+                break
+        
+        # Nettoyer la marque
+        common_brands = ["nike", "adidas", "zara", "h&m", "puma", "real madrid", "barcelona", "psg"]
+        detected_brand = "À préciser"
+        
+        brand_lower = brand.lower()
+        desc_lower = description.lower()
+        
+        for b in common_brands:
+            if b in brand_lower or b in desc_lower:
+                detected_brand = b.title()
+                break
+        
+        return {
+            "type": detected_type,
+            "marque": detected_brand,
+            "couleur": detected_color,
+            "etat": "Bon",
+            "taille": "À préciser",
+            "matiere": "À préciser",
+            "details": description[:100] if description else f"{detected_type} {detected_color}"
+        }
+    
+    def _fallback_analysis(self, image_path):
+        """Analyse de secours si l'IA ne marche pas"""
+        try:
+            img = Image.open(image_path)
+            
+            # Analyse basique de couleur
+            img_small = img.resize((50, 50))
+            pixels = list(img_small.getdata())
+            
+            # Moyenne RGB
+            avg_r = sum(p[0] for p in pixels) / len(pixels)
+            avg_g = sum(p[1] for p in pixels) / len(pixels)
+            avg_b = sum(p[2] for p in pixels) / len(pixels)
+            
+            # Déterminer couleur
+            if avg_r > 200 and avg_g > 200 and avg_b > 200:
+                color = "blanc"
+            elif avg_r < 80 and avg_g < 80 and avg_b < 80:
+                color = "noir"
+            elif avg_r > avg_g + 30 and avg_r > avg_b + 30:
+                color = "rouge"
+            elif avg_b > avg_r + 30 and avg_b > avg_g + 30:
+                color = "bleu"
+            else:
+                color = "multicolore"
+            
             return {
                 "type": "vêtement",
                 "marque": "À préciser",
-                "couleur": "multicolore",
+                "couleur": color,
                 "etat": "Bon",
                 "taille": "À préciser",
                 "matiere": "À préciser",
-                "details": "Article en bon état"
+                "details": f"Article {color}"
             }
-    
-    def _detect_color(self, img):
-        """Détecte la couleur dominante de l'image"""
-        try:
-            # Redimensionner pour accélérer
-            img_small = img.resize((100, 100))
-            
-            # Convertir en RGB
-            if img_small.mode != 'RGB':
-                img_small = img_small.convert('RGB')
-            
-            pixels = list(img_small.getdata())
-            
-            # Filtrer les pixels trop clairs (fond blanc) et trop sombres (ombres)
-            filtered_pixels = [
-                p for p in pixels 
-                if not (p[0] > 240 and p[1] > 240 and p[2] > 240)  # Pas blanc
-                and not (p[0] < 30 and p[1] < 30 and p[2] < 30)    # Pas noir pur
-            ]
-            
-            if not filtered_pixels:
-                filtered_pixels = pixels
-            
-            # Compter les couleurs
-            color_counts = Counter(filtered_pixels)
-            
-            # Prendre les 3 couleurs les plus fréquentes
-            top_colors = color_counts.most_common(3)
-            
-            # Analyser la couleur dominante
-            if top_colors:
-                dominant_rgb = top_colors[0][0]
-                return self._rgb_to_color_name(dominant_rgb)
-            
-            return "multicolore"
-            
-        except Exception as e:
-            print(f"⚠️ Erreur détection couleur : {e}")
-            return "à préciser"
-    
-    def _rgb_to_color_name(self, rgb):
-        """Convertit RGB en nom de couleur français"""
-        r, g, b = rgb
-        
-        # Blanc
-        if r > 200 and g > 200 and b > 200:
-            return "blanc"
-        
-        # Noir
-        if r < 60 and g < 60 and b < 60:
-            return "noir"
-        
-        # Gris
-        if abs(r - g) < 30 and abs(g - b) < 30 and abs(r - b) < 30:
-            if 60 <= r <= 200:
-                return "gris"
-        
-        # Rouge
-        if r > g + 40 and r > b + 40:
-            return "rouge"
-        
-        # Bleu
-        if b > r + 40 and b > g + 40:
-            return "bleu"
-        
-        # Vert
-        if g > r + 40 and g > b + 40:
-            return "vert"
-        
-        # Jaune
-        if r > 180 and g > 180 and b < 100:
-            return "jaune"
-        
-        # Orange
-        if r > 200 and 100 < g < 200 and b < 100:
-            return "orange"
-        
-        # Rose
-        if r > 180 and b > 150 and g < 150:
-            return "rose"
-        
-        # Violet
-        if r > 100 and b > 100 and g < 100:
-            return "violet"
-        
-        # Beige/Marron
-        if r > 140 and g > 120 and b > 80 and r > b:
-            if r - b < 50:
-                return "beige"
-            else:
-                return "marron"
-        
-        return "multicolore"
-    
-    def _detect_type(self, img):
-        """Détecte le type de vêtement par les proportions"""
-        try:
-            width, height = img.size
-            ratio = height / width if width > 0 else 1
-            
-            # T-shirt/Maillot : plutôt carré ou légèrement vertical
-            if 0.9 <= ratio <= 1.3:
-                return "t-shirt"
-            
-            # Pull : plus vertical
-            elif ratio > 1.3:
-                return "pull"
-            
-            # Pantalon : horizontal
-            elif ratio < 0.8:
-                return "pantalon"
-            
-            return "vêtement"
             
         except:
-            return "vêtement"
+            return {
+                "type": "vêtement",
+                "marque": "À préciser",
+                "couleur": "à préciser",
+                "etat": "Bon",
+                "taille": "À préciser",
+                "matiere": "À préciser",
+                "details": "Article à détailler"
+            }
 
 
 # Test
 if __name__ == "__main__":
     analyzer = ImageAnalyzer()
     # result = analyzer.analyze_product("test.jpg")
-    # print(result)
+    # print(json.dumps(result, indent=2, ensure_ascii=False))
