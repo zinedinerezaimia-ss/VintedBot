@@ -1,183 +1,136 @@
 """
-Générateur de descriptions amélioré avec templates intelligents
+Générateur de descriptions 100% fiable avec templates
+Pas d'appels API externes
 """
 
-import requests
-import json
 import random
 
 class DescriptionGenerator:
-    """Génère des descriptions attractives"""
+    """Génère des descriptions attractives avec templates"""
     
     def __init__(self):
-        self.api_url = "https://api.airforce/v1/chat/completions"
-        
-        # Templates de descriptions par type
+        # Templates de descriptions par couleur et type
         self.templates = {
-            "t-shirt": [
-                "{marque} {couleur} en {etat_fr}. {details}. Parfait pour un look décontracté ! Envoi rapide 📦",
-                "T-shirt {marque} {couleur} {etat_fr}. {details}. Idéal pour toutes les occasions ! 👕",
-                "Superbe t-shirt {couleur} {marque}. {details}. État impeccable, envoi soigné ! ✨"
-            ],
-            "maillot": [
-                "Maillot {marque} {couleur}. {details}. Pour les vrais fans ! ⚽ Envoi rapide 📦",
-                "{marque} - {details}. {etat_fr}, idéal pour supporter votre équipe ! 🏆",
-                "Magnifique maillot {couleur}. {details}. État {etat_fr}, envoi soigné ! ⚽"
-            ],
-            "pull": [
-                "Pull {marque} {couleur} tout doux. {details}. Parfait pour l'hiver ! ❄️ Envoi rapide 📦",
-                "{marque} {couleur} {etat_fr}. {details}. Chaleureux et confortable ! 🧶",
-                "Joli pull {couleur}. {details}. État {etat_fr}, envoi soigné ! ✨"
-            ],
-            "pantalon": [
-                "Pantalon {marque} {couleur}. {details}. Coupe parfaite ! 👖 Envoi rapide 📦",
-                "{marque} {couleur} {etat_fr}. {details}. Style et confort ! ✨",
-                "Super pantalon {couleur}. {details}. État {etat_fr}, envoi soigné ! 👌"
-            ],
-            "default": [
-                "{type} {marque} {couleur}. {details}. État {etat_fr} ! Envoi rapide 📦",
-                "Article {couleur} {marque}. {details}. Parfait état, envoi soigné ! ✨",
-                "{type} {couleur} en {etat_fr}. {details}. N'hésitez pas ! 👌"
-            ]
+            "t-shirt": {
+                "blanc": [
+                    "T-shirt blanc classique et intemporel. Parfait pour toutes les occasions ! Très bon état. Envoi rapide 📦",
+                    "Joli t-shirt blanc tout simple. Idéal pour un look casual ! État impeccable. Envoi soigné ✨",
+                    "T-shirt blanc basique et essentiel. S'associe avec tout ! Bon état. Envoi rapide 👕"
+                ],
+                "noir": [
+                    "T-shirt noir élégant et polyvalent. Parfait au quotidien ! Très bon état. Envoi rapide 📦",
+                    "Super t-shirt noir indémodable. Coupe classique, état nickel ! Envoi soigné ✨",
+                    "T-shirt noir basic mais efficace. Un incontournable ! Bon état. Envoi rapide 👕"
+                ],
+                "default": [
+                    "Joli t-shirt en {couleur}. Parfait pour un look décontracté ! Bon état. Envoi rapide 📦",
+                    "T-shirt {couleur} sympa et confortable. État nickel ! Envoi soigné ✨",
+                    "Super t-shirt couleur {couleur}. Idéal au quotidien ! Envoi rapide 👕"
+                ]
+            },
+            "pull": {
+                "default": [
+                    "Pull {couleur} tout doux et confortable. Parfait pour l'hiver ! Bon état. Envoi rapide 📦",
+                    "Joli pull couleur {couleur}. Chaud et agréable à porter ! État nickel. Envoi soigné ✨",
+                    "Super pull {couleur} bien chaud. Un indispensable ! Très bon état. Envoi rapide 🧶"
+                ]
+            },
+            "pantalon": {
+                "default": [
+                    "Pantalon {couleur} confortable. Coupe classique, très bon état ! Envoi rapide 📦",
+                    "Joli pantalon couleur {couleur}. Style et confort assurés ! État impeccable. Envoi soigné ✨",
+                    "Super pantalon {couleur} polyvalent. Parfait au quotidien ! Bon état. Envoi rapide 👖"
+                ]
+            },
+            "default": {
+                "default": [
+                    "Article {couleur} de qualité. Bon état général ! Envoi rapide et soigné 📦",
+                    "Joli vêtement couleur {couleur}. État nickel ! Envoi rapide ✨",
+                    "Article {couleur} sympa. Très bon état ! Envoi soigné 👌"
+                ]
+            }
+        }
+        
+        # Emojis par type
+        self.emojis = {
+            "t-shirt": "👕",
+            "pull": "🧶",
+            "pantalon": "👖",
+            "veste": "🧥",
+            "robe": "👗",
+            "chaussures": "👟"
         }
     
     def generate_title(self, product_info):
-        """Génère un titre optimisé"""
+        """Génère un titre optimisé pour Vinted"""
         parts = []
         
-        # Marque en premier si identifiée
-        if product_info.get('marque') and product_info['marque'] not in ["À préciser", "Non identifiée"]:
-            parts.append(product_info['marque'])
-        
         # Type de produit
-        type_clean = product_info['type'].capitalize()
-        if type_clean not in ["Vêtement", "Article"]:
-            parts.append(type_clean)
+        type_name = product_info['type'].capitalize()
+        parts.append(type_name)
         
         # Couleur
-        if product_info.get('couleur') and product_info['couleur'] != "À préciser":
-            parts.append(product_info['couleur'])
+        couleur = product_info.get('couleur', '')
+        if couleur and couleur != "À préciser":
+            parts.append(couleur)
         
         # Taille si disponible
-        if product_info.get('taille') and product_info['taille'] not in ["À préciser", "Non visible"]:
-            parts.append(f"T.{product_info['taille']}")
+        taille = product_info.get('taille', '')
+        if taille and taille not in ["À préciser", "Non visible"]:
+            parts.append(f"T.{taille}")
+        
+        # Marque si disponible
+        marque = product_info.get('marque', '')
+        if marque and marque not in ["À préciser", "Non identifiée"]:
+            parts.insert(0, marque)
         
         # État
-        if product_info.get('etat'):
-            parts.append(f"- {product_info['etat']}")
+        etat = product_info.get('etat', 'Bon')
+        parts.append(f"- {etat}")
         
-        # Si le titre est trop court, ajouter des infos
         title = " ".join(parts)
-        if len(title) < 15:
-            title = f"{product_info['type'].capitalize()} {product_info['couleur']} - {product_info['etat']}"
         
-        return title[:80]  # Limite Vinted
+        # Limiter à 80 caractères (limite Vinted)
+        if len(title) > 80:
+            title = title[:77] + "..."
+        
+        return title
     
     def generate_description(self, product_info, price_info):
-        """Génère une description avec fallback intelligent"""
+        """Génère une description attractive"""
         
-        # Essayer l'IA d'abord
-        ai_desc = self._generate_with_ai(product_info, price_info)
-        if ai_desc and len(ai_desc) > 50:
-            return ai_desc
-        
-        # Fallback : utiliser les templates
-        return self._generate_from_template(product_info)
-    
-    def _generate_with_ai(self, product_info, price_info):
-        """Génération avec IA"""
-        try:
-            prompt = f"""Crée une description Vinted attractive (200 caractères max) pour :
-
-Type : {product_info.get('type')}
-Marque : {product_info.get('marque')}
-Couleur : {product_info.get('couleur')}
-État : {product_info.get('etat')}
-Détails : {product_info.get('details')}
-
-Règles :
-- 200 caractères maximum
-- Ton amical et naturel
-- 1-2 emojis pertinents
-- Termine par "Envoi rapide !"
-- Pas de guillemets
-
-Réponds UNIQUEMENT avec la description."""
-
-            payload = {
-                "model": "gpt-4o-mini",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 200,
-                "temperature": 0.7
-            }
-            
-            response = requests.post(self.api_url, json=payload, timeout=15)
-            
-            if response.status_code == 200:
-                result = response.json()
-                desc = result['choices'][0]['message']['content'].strip()
-                desc = desc.replace('"', '').replace("'", "'")
-                
-                # Vérifier que c'est une vraie description
-                if len(desc) > 30 and "does not exist" not in desc.lower():
-                    return desc[:250]
-                    
-        except Exception as e:
-            print(f"⚠️ IA description erreur : {e}")
-        
-        return None
-    
-    def _generate_from_template(self, product_info):
-        """Génère depuis un template"""
-        
-        # Choisir le bon template
         product_type = product_info['type'].lower()
-        templates = self.templates.get(product_type, self.templates['default'])
+        couleur = product_info.get('couleur', 'neutre').lower()
         
-        # Sélectionner un template aléatoire
-        template = random.choice(templates)
+        # Récupérer les templates appropriés
+        type_templates = self.templates.get(product_type, self.templates['default'])
         
-        # Mapper l'état en français
-        etat_map = {
-            "Neuf": "neuf avec étiquette",
-            "Très bon": "excellent état",
-            "Bon": "bon état",
-            "Satisfaisant": "état correct"
-        }
+        # Chercher par couleur spécifique, sinon utiliser default
+        color_templates = type_templates.get(couleur, type_templates.get('default', []))
         
-        etat_fr = etat_map.get(product_info.get('etat', 'Bon'), "bon état")
+        # Si pas de templates, utiliser le default général
+        if not color_templates:
+            color_templates = self.templates['default']['default']
         
-        # Préparer les variables
-        variables = {
-            "type": product_info['type'].capitalize(),
-            "marque": product_info.get('marque', ''),
-            "couleur": product_info.get('couleur', ''),
-            "etat_fr": etat_fr,
-            "details": product_info.get('details', 'Article de qualité')
-        }
+        # Choisir un template aléatoire
+        template = random.choice(color_templates)
         
-        # Nettoyer les variables vides
-        for key, value in variables.items():
-            if value in ["À préciser", "Non identifiée", ""]:
-                if key == "marque":
-                    variables[key] = ""
-                elif key == "couleur":
-                    variables[key] = "couleur neutre"
-                elif key == "details":
-                    variables[key] = "Article de qualité"
+        # Remplacer les variables
+        description = template.format(
+            couleur=couleur,
+            type=product_type
+        )
         
-        # Générer la description
-        try:
-            description = template.format(**variables)
-            # Nettoyer les doubles espaces
-            description = " ".join(description.split())
-            return description[:250]
-        except Exception as e:
-            print(f"⚠️ Template erreur : {e}")
-            return f"{variables['type']} {variables['couleur']} en {etat_fr}. Envoi rapide ! 📦"
+        # Ajouter un emoji si pertinent
+        emoji = self.emojis.get(product_type, "")
+        if emoji and emoji not in description:
+            description = description.replace("📦", f"{emoji} 📦")
+        
+        return description
     
     def create_full_listing(self, product_info, price_info):
         """Crée l'annonce complète"""
+        
         title = self.generate_title(product_info)
         description = self.generate_description(product_info, price_info)
         
@@ -195,20 +148,20 @@ if __name__ == "__main__":
     generator = DescriptionGenerator()
     
     test_product = {
-        "type": "maillot",
-        "marque": "Adidas",
+        "type": "t-shirt",
+        "marque": "À préciser",
         "couleur": "blanc",
         "taille": "M",
         "etat": "Bon",
-        "matiere": "polyester",
-        "details": "Maillot Real Madrid"
+        "matiere": "coton",
+        "details": "Article en bon état"
     }
     
     test_price = {
-        "prix_recommande": 25.0,
-        "prix_min": 20.0,
-        "prix_max": 30.0
+        "prix_recommande": 10.0,
+        "prix_min": 7.0,
+        "prix_max": 13.0
     }
     
-    # result = generator.create_full_listing(test_product, test_price)
-    # print(json.dumps(result, indent=2, ensure_ascii=False))
+    result = generator.create_full_listing(test_product, test_price)
+    print(result)
