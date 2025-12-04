@@ -1,6 +1,5 @@
 """
-Interface Web pour le Bot Vinted
-À déployer gratuitement sur Render.com ou Railway.app
+Interface Web améliorée avec correction manuelle
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -9,25 +8,21 @@ import os
 from pathlib import Path
 import sys
 
-# Importer nos modules
 sys.path.append(str(Path(__file__).parent))
 from modules.image_analyzer import ImageAnalyzer
 from modules.price_analyzer import PriceAnalyzer
 from modules.description_generator import DescriptionGenerator
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Créer le dossier uploads
 os.makedirs('uploads', exist_ok=True)
 
-# Initialiser les analyseurs
 image_analyzer = ImageAnalyzer()
 price_analyzer = PriceAnalyzer()
 desc_generator = DescriptionGenerator()
 
-# Template HTML simple
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -124,6 +119,33 @@ HTML_TEMPLATE = """
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .edit-form {
+            display: none;
+            margin-top: 30px;
+            padding: 30px;
+            background: #f8f9ff;
+            border-radius: 15px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
         .result {
             display: none;
             margin-top: 30px;
@@ -178,12 +200,71 @@ HTML_TEMPLATE = """
             
             <img id="preview" alt="Aperçu">
             
-            <button type="submit" class="btn" id="submitBtn">🚀 Analyser mon produit</button>
+            <button type="submit" class="btn" id="submitBtn">🔍 Analyser mon produit</button>
         </form>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Analyse en cours... Cela peut prendre 10-30 secondes</p>
+            <p>Analyse en cours...</p>
+        </div>
+        
+        <div class="edit-form" id="editForm">
+            <h2>✏️ Vérifiez et corrigez les informations</h2>
+            
+            <div class="form-group">
+                <label>Type de produit *</label>
+                <select id="productType">
+                    <option value="t-shirt">T-shirt</option>
+                    <option value="maillot">Maillot de sport</option>
+                    <option value="pull">Pull / Sweat</option>
+                    <option value="pantalon">Pantalon</option>
+                    <option value="jean">Jean</option>
+                    <option value="robe">Robe</option>
+                    <option value="veste">Veste</option>
+                    <option value="chaussures">Chaussures</option>
+                    <option value="accessoire">Accessoire</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Marque</label>
+                <input type="text" id="brand" placeholder="Nike, Adidas, Zara...">
+            </div>
+            
+            <div class="form-group">
+                <label>Couleur principale *</label>
+                <input type="text" id="color" placeholder="blanc, noir, rouge..." required>
+            </div>
+            
+            <div class="form-group">
+                <label>Taille</label>
+                <select id="size">
+                    <option value="À préciser">À préciser</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>État *</label>
+                <select id="condition">
+                    <option value="Neuf">Neuf avec étiquette</option>
+                    <option value="Très bon">Très bon état</option>
+                    <option value="Bon" selected>Bon état</option>
+                    <option value="Satisfaisant">État satisfaisant</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Détails / Description courte</label>
+                <input type="text" id="details" placeholder="Ex: Logo Real Madrid, motif fleuri...">
+            </div>
+            
+            <button type="button" class="btn" onclick="generateListing()">✨ Générer l'annonce</button>
         </div>
         
         <div class="result" id="result">
@@ -206,10 +287,7 @@ HTML_TEMPLATE = """
                 <button class="copy-btn" onclick="copyText('description')">Copier</button>
             </div>
             
-            <div class="info-box">
-                <strong>ℹ️ Détails du produit :</strong>
-                <div id="details"></div>
-            </div>
+            <button class="btn" onclick="location.reload()">🔄 Nouvelle annonce</button>
         </div>
         
         <div class="footer">
@@ -223,12 +301,11 @@ HTML_TEMPLATE = """
         const preview = document.getElementById('preview');
         const form = document.getElementById('uploadForm');
         const loading = document.getElementById('loading');
+        const editForm = document.getElementById('editForm');
         const result = document.getElementById('result');
+        let currentImageFile = null;
 
-        // Click to upload
         dropZone.onclick = () => fileInput.click();
-
-        // Drag & drop
         dropZone.ondragover = (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
@@ -241,23 +318,23 @@ HTML_TEMPLATE = """
             showPreview();
         };
 
-        // Preview
         fileInput.onchange = showPreview;
         function showPreview() {
             const file = fileInput.files[0];
             if (file) {
+                currentImageFile = file;
                 preview.src = URL.createObjectURL(file);
                 preview.style.display = 'block';
             }
         }
 
-        // Submit
         form.onsubmit = async (e) => {
             e.preventDefault();
             
             const formData = new FormData(form);
             
             loading.style.display = 'block';
+            editForm.style.display = 'none';
             result.style.display = 'none';
             document.getElementById('submitBtn').disabled = true;
 
@@ -270,22 +347,15 @@ HTML_TEMPLATE = """
                 const data = await response.json();
 
                 if (data.success) {
-                    document.getElementById('titre').textContent = data.annonce.titre;
-                    document.getElementById('prix').textContent = 
-                        `${data.annonce.prix}€ (Fourchette: ${data.annonce.prix_min}€ - ${data.annonce.prix_max}€)`;
-                    document.getElementById('description').textContent = data.annonce.description;
+                    // Pré-remplir le formulaire
+                    document.getElementById('productType').value = data.produit.type;
+                    document.getElementById('brand').value = data.produit.marque !== 'À préciser' ? data.produit.marque : '';
+                    document.getElementById('color').value = data.produit.couleur;
+                    document.getElementById('size').value = data.produit.taille;
+                    document.getElementById('condition').value = data.produit.etat;
+                    document.getElementById('details').value = data.produit.details;
                     
-                    const details = `
-                        Type: ${data.produit.type}<br>
-                        Marque: ${data.produit.marque}<br>
-                        Couleur: ${data.produit.couleur}<br>
-                        État: ${data.produit.etat}<br>
-                        Taille: ${data.produit.taille}<br>
-                        Matière: ${data.produit.matiere}
-                    `;
-                    document.getElementById('details').innerHTML = details;
-                    
-                    result.style.display = 'block';
+                    editForm.style.display = 'block';
                 } else {
                     alert('Erreur: ' + data.error);
                 }
@@ -296,6 +366,44 @@ HTML_TEMPLATE = """
                 document.getElementById('submitBtn').disabled = false;
             }
         };
+
+        async function generateListing() {
+            loading.style.display = 'block';
+            
+            const productInfo = {
+                type: document.getElementById('productType').value,
+                marque: document.getElementById('brand').value || 'À préciser',
+                couleur: document.getElementById('color').value,
+                taille: document.getElementById('size').value,
+                etat: document.getElementById('condition').value,
+                matiere: 'À préciser',
+                details: document.getElementById('details').value || 'Article de qualité'
+            };
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({product_info: productInfo})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('titre').textContent = data.annonce.titre;
+                    document.getElementById('prix').textContent = 
+                        `${data.annonce.prix}€ (Fourchette: ${data.annonce.prix_min}€ - ${data.annonce.prix_max}€)`;
+                    document.getElementById('description').textContent = data.annonce.description;
+                    
+                    editForm.style.display = 'none';
+                    result.style.display = 'block';
+                }
+            } catch (error) {
+                alert('Erreur: ' + error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
 
         function copyText(id) {
             const text = document.getElementById(id).textContent;
@@ -309,12 +417,11 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
-    """Page d'accueil"""
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    """Endpoint pour analyser une image"""
+    """Analyse initiale de l'image"""
     try:
         if 'image' not in request.files:
             return jsonify({'success': False, 'error': 'Aucune image fournie'})
@@ -323,15 +430,30 @@ def analyze():
         if file.filename == '':
             return jsonify({'success': False, 'error': 'Aucun fichier sélectionné'})
         
-        # Sauvegarder temporairement
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
         # Analyser l'image
         product_info = image_analyzer.analyze_product(filepath)
-        if not product_info:
-            return jsonify({'success': False, 'error': 'Impossible d\'analyser l\'image'})
+        
+        # Supprimer le fichier temporaire
+        os.remove(filepath)
+        
+        return jsonify({
+            'success': True,
+            'produit': product_info
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    """Génère l'annonce finale"""
+    try:
+        data = request.get_json()
+        product_info = data['product_info']
         
         # Analyser les prix
         price_info = price_analyzer.calculate_optimal_price(product_info)
@@ -339,13 +461,8 @@ def analyze():
         # Générer l'annonce
         listing = desc_generator.create_full_listing(product_info, price_info)
         
-        # Supprimer le fichier temporaire
-        os.remove(filepath)
-        
         return jsonify({
             'success': True,
-            'produit': product_info,
-            'prix': price_info,
             'annonce': listing
         })
         
@@ -353,5 +470,4 @@ def analyze():
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    # Pour le développement local
     app.run(debug=True, host='0.0.0.0', port=5000)
