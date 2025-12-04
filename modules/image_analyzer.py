@@ -1,98 +1,89 @@
 """
-Analyseur d'images 100% gratuit avec Hugging Face API
-Pas besoin de clé API payante, fonctionne en cloud
+Analyseur d'images amélioré avec meilleure détection
 """
 
 import requests
 import base64
 from PIL import Image
 import json
-import io
+import re
 
 class ImageAnalyzer:
-    """Analyse les photos avec Hugging Face (gratuit illimité)"""
+    """Analyse les photos avec plusieurs APIs gratuites"""
     
     def __init__(self):
-        # URL de l'API Hugging Face (gratuite)
-        self.api_url_blip = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
-        self.api_url_vit = "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"
-        
-        # Token gratuit (optionnel mais recommandé pour éviter rate limit)
-        # Créer un compte sur huggingface.co et obtenir un token gratuit
-        self.headers = {
-            "Authorization": "Bearer hf_votre_token_gratuit_ici"  # Optionnel
-        }
+        # URLs des APIs gratuites
+        self.gpt4free_url = "https://api.airforce/v1/chat/completions"
+        self.huggingface_url = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
     
-    def query_image(self, image_path):
-        """Envoie l'image à l'API Hugging Face"""
-        with open(image_path, "rb") as f:
-            data = f.read()
+    def analyze_product(self, image_path):
+        """
+        Analyse une image avec fallback intelligent
+        """
+        print("🔍 Analyse de l'image...")
         
-        response = requests.post(
-            self.api_url_blip,
-            headers=self.headers,
-            data=data,
-            timeout=30
-        )
-        return response.json()
+        # Essayer plusieurs méthodes
+        result = None
+        
+        # Méthode 1 : GPT4Free (meilleure qualité)
+        result = self._analyze_with_gpt4free(image_path)
+        
+        # Si échec, utiliser analyse basique intelligente
+        if not result or not self._is_valid_result(result):
+            print("⚠️ IA non disponible, utilisation de l'analyse de base")
+            result = self._smart_basic_analysis(image_path)
+        
+        # Nettoyer et valider le résultat
+        result = self._clean_result(result)
+        
+        print(f"✅ Produit analysé : {result['type']}")
+        return result
     
-    def analyze_with_gpt4free(self, image_path):
-        """
-        Alternative : utilise GPT4Free (gratuit, pas de clé API)
-        Accès gratuit à plusieurs modèles IA
-        """
+    def _analyze_with_gpt4free(self, image_path):
+        """Analyse avec GPT4Free"""
         try:
-            # Convertir l'image en base64
             with open(image_path, "rb") as img_file:
                 img_data = base64.b64encode(img_file.read()).decode()
             
-            # GPT4Free - API gratuite qui donne accès à plusieurs modèles
-            url = "https://api.airforce/v1/chat/completions"
-            
-            prompt = """Analyse cette image de vêtement/produit et donne-moi ces informations au format JSON strict (pas de texte avant ou après) :
+            prompt = """Analyse cette image de vêtement et réponds UNIQUEMENT avec un JSON (pas de texte avant/après) :
 {
-  "type": "type exact (t-shirt/pull/pantalon/robe/chaussures/accessoire)",
-  "marque": "marque visible ou 'Non identifiée'",
-  "couleur": "couleur principale",
+  "type": "t-shirt/pull/maillot/pantalon/robe/chaussures/veste",
+  "marque": "marque visible (Adidas/Nike/Zara...) ou 'Non identifiée'",
+  "couleur": "couleur principale exacte",
   "etat": "Neuf/Très bon/Bon/Satisfaisant",
-  "taille": "taille visible ou 'Non visible'",
-  "matiere": "matière probable",
-  "details": "détails importants (motifs, style)"
-}"""
+  "taille": "taille si visible (S/M/L/XL) ou 'À préciser'",
+  "matiere": "matière probable (coton/polyester/cuir...)",
+  "details": "détails importants (logo, équipe, motif...)"
+}
+
+Exemples de bonnes réponses :
+- Si c'est un maillot du Real Madrid : marque="Adidas", details="Maillot Real Madrid"
+- Si c'est un t-shirt Nike noir : marque="Nike", couleur="noir"
+"""
             
             payload = {
-                "model": "gpt-4o-mini",  # Modèle gratuit
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{img_data}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                "max_tokens": 500
+                "model": "gpt-4o-mini",
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_data}"}}
+                    ]
+                }],
+                "max_tokens": 500,
+                "temperature": 0.3
             }
             
-            response = requests.post(url, json=payload, timeout=60)
+            response = requests.post(self.gpt4free_url, json=payload, timeout=30)
             
             if response.status_code == 200:
                 result = response.json()
                 content = result['choices'][0]['message']['content']
                 
                 # Extraire le JSON
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
                 if json_match:
                     product_info = json.loads(json_match.group())
-                    print(f"✅ Produit analysé avec GPT4Free : {product_info['type']}")
                     return product_info
             
         except Exception as e:
@@ -100,101 +91,132 @@ class ImageAnalyzer:
         
         return None
     
-    def analyze_product(self, image_path):
+    def _smart_basic_analysis(self, image_path):
         """
-        Analyse une image avec plusieurs méthodes gratuites
-        Essaie GPT4Free d'abord, puis Hugging Face en fallback
+        Analyse basique mais intelligente en se basant sur :
+        - Les couleurs dominantes de l'image
+        - La forme générale
+        - Patterns courants
         """
-        print("🔍 Analyse de l'image avec IA gratuite...")
-        
-        # Méthode 1 : GPT4Free (meilleure qualité)
-        result = self.analyze_with_gpt4free(image_path)
-        if result:
-            return result
-        
-        # Méthode 2 : Hugging Face Inference API
-        print("🔄 Tentative avec Hugging Face...")
         try:
-            description = self.query_image(image_path)
+            img = Image.open(image_path)
             
-            if isinstance(description, list) and len(description) > 0:
-                desc_text = description[0].get('generated_text', '')
-                
-                # Parser la description pour extraire les infos
-                product_info = self._parse_description(desc_text)
-                print(f"✅ Produit analysé avec HF : {product_info['type']}")
-                return product_info
-                
+            # Analyser les couleurs dominantes
+            img_small = img.resize((150, 150))
+            pixels = list(img_small.getdata())
+            
+            # Compter les couleurs
+            from collections import Counter
+            color_counts = Counter(pixels)
+            dominant_colors = color_counts.most_common(5)
+            
+            # Déterminer la couleur principale
+            main_color = self._get_color_name(dominant_colors[0][0])
+            
+            # Détection basique du type (par ratio d'image)
+            width, height = img.size
+            ratio = height / width
+            
+            if ratio > 1.3:
+                product_type = "t-shirt"
+            elif ratio > 1.0:
+                product_type = "pull"
+            elif ratio < 0.8:
+                product_type = "pantalon"
+            else:
+                product_type = "vêtement"
+            
+            return {
+                "type": product_type,
+                "marque": "À préciser",
+                "couleur": main_color,
+                "etat": "Bon",
+                "taille": "À préciser",
+                "matiere": "À préciser",
+                "details": f"Article {main_color} en bon état"
+            }
+            
         except Exception as e:
-            print(f"⚠️ Hugging Face erreur : {e}")
-        
-        # Méthode 3 : Fallback - analyse basique de l'image
-        print("⚠️ Utilisation de l'analyse basique...")
-        return self._basic_image_analysis(image_path)
+            print(f"⚠️ Analyse basique erreur : {e}")
+            return self._default_result()
     
-    def _parse_description(self, description):
-        """Parse une description textuelle pour extraire les infos"""
-        desc_lower = description.lower()
+    def _get_color_name(self, rgb):
+        """Convertit RGB en nom de couleur"""
+        r, g, b = rgb[:3] if len(rgb) >= 3 else (128, 128, 128)
         
-        # Détecter le type
-        types = {
-            "t-shirt": ["shirt", "tshirt", "tee"],
-            "pull": ["sweater", "pullover", "jumper"],
-            "pantalon": ["pants", "trousers", "jeans"],
-            "robe": ["dress"],
-            "chaussures": ["shoes", "sneakers", "boots"],
-            "veste": ["jacket", "coat"]
-        }
-        
-        product_type = "vêtement"
-        for french, keywords in types.items():
-            if any(k in desc_lower for k in keywords):
-                product_type = french
-                break
-        
-        # Détecter couleurs
-        colors = {
-            "noir": ["black"],
-            "blanc": ["white"],
-            "rouge": ["red"],
-            "bleu": ["blue"],
-            "vert": ["green"],
-            "jaune": ["yellow"],
-            "gris": ["gray", "grey"]
-        }
-        
-        color = "mixte"
-        for french, keywords in colors.items():
-            if any(k in desc_lower for k in keywords):
-                color = french
-                break
-        
-        return {
-            "type": product_type,
-            "marque": "Non identifiée",
-            "couleur": color,
-            "etat": "Bon",
-            "taille": "Non visible",
-            "matiere": "À préciser",
-            "details": description[:100]
-        }
+        # Détection de couleurs communes
+        if r > 200 and g > 200 and b > 200:
+            return "blanc"
+        elif r < 50 and g < 50 and b < 50:
+            return "noir"
+        elif r > 150 and g < 100 and b < 100:
+            return "rouge"
+        elif r < 100 and g > 150 and b < 100:
+            return "vert"
+        elif r < 100 and g < 100 and b > 150:
+            return "bleu"
+        elif r > 150 and g > 150 and b < 100:
+            return "jaune"
+        elif r > 150 and g < 100 and b > 150:
+            return "rose"
+        elif r > 100 and g > 100 and b > 100:
+            return "gris"
+        else:
+            return "multicolore"
     
-    def _basic_image_analysis(self, image_path):
-        """Analyse basique sans IA (fallback)"""
-        return {
+    def _is_valid_result(self, result):
+        """Vérifie si le résultat est valide"""
+        if not result:
+            return False
+        
+        required_fields = ["type", "marque", "couleur", "etat"]
+        for field in required_fields:
+            if field not in result or not result[field]:
+                return False
+        
+        return True
+    
+    def _clean_result(self, result):
+        """Nettoie et normalise le résultat"""
+        if not result:
+            return self._default_result()
+        
+        # Remplacer les valeurs vides
+        defaults = {
             "type": "vêtement",
-            "marque": "Non identifiée",
+            "marque": "À préciser",
             "couleur": "À préciser",
             "etat": "Bon",
             "taille": "À préciser",
             "matiere": "À préciser",
-            "details": "Veuillez vérifier et compléter les informations"
+            "details": "Article en bon état"
+        }
+        
+        for key, default_value in defaults.items():
+            if key not in result or not result[key] or result[key] == "Non identifiée":
+                result[key] = default_value
+        
+        # Capitaliser
+        result["type"] = result["type"].lower()
+        result["couleur"] = result["couleur"].lower()
+        
+        return result
+    
+    def _default_result(self):
+        """Résultat par défaut"""
+        return {
+            "type": "vêtement",
+            "marque": "À préciser",
+            "couleur": "À préciser",
+            "etat": "Bon",
+            "taille": "À préciser",
+            "matiere": "À préciser",
+            "details": "Article à détailler"
         }
 
 
 # Test
 if __name__ == "__main__":
-    import re
     analyzer = ImageAnalyzer()
     # result = analyzer.analyze_product("chemin/vers/image.jpg")
-    # print(result)
+    # print(json.dumps(result, indent=2, ensure_ascii=False))
