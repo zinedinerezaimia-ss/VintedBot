@@ -199,28 +199,50 @@ class ImageAnalyzer:
         return 'multicolore'
     
     def _detect_type_from_shape(self, img):
-        """Détecte le type de vêtement par la forme de l'image"""
-        try:
-            width, height = img.size
-            ratio = height / width if width > 0 else 1
-            
-            # Maillot / T-shirt : plutôt carré ou légèrement vertical
-            if 0.85 <= ratio <= 1.3:
-                return 't-shirt'
-            
-            # Pull : plus vertical
-            elif ratio > 1.3:
-                return 'pull'
-            
-            # Pantalon : plus horizontal
-            elif ratio < 0.85:
-                return 'pantalon'
-            
-            return 'vêtement'
-            
-        except Exception as e:
-            print(f"   ⚠️ Erreur type: {e}")
-            return 'vêtement'
+    """Détecte le type de vêtement par la forme de l'image"""
+    try:
+        width, height = img.size
+        ratio = height / width if width > 0 else 1
+        
+        # NOUVEAU : Analyser les couleurs pour détecter maillots
+        colors = self._analyze_colors_advanced(img)
+        
+        # Si bicolore avec bandes (typique des maillots)
+        # OU si bleu + rouge/blanc (équipes connues)
+        is_likely_jersey = False
+        if len(colors) >= 2:
+            color_combo = set(colors[:2])
+            jersey_combos = [
+                {'bleu', 'rouge'},  # PSG, Barça
+                {'bleu', 'blanc'},  # France, Real Madrid domicile  
+                {'rouge', 'blanc'},  # Bayern, Arsenal
+                {'vert', 'blanc'},  # Algérie
+                {'noir', 'blanc'},  # Juventus
+            ]
+            if color_combo in jersey_combos:
+                is_likely_jersey = True
+        
+        # Si c'est probablement un maillot
+        if is_likely_jersey:
+            return 'maillot'
+        
+        # Maillot / T-shirt : plutôt carré ou légèrement vertical
+        if 0.85 <= ratio <= 1.3:
+            return 't-shirt'
+        
+        # Pull : plus vertical
+        elif ratio > 1.3:
+            return 'pull'
+        
+        # Pantalon : plus horizontal
+        elif ratio < 0.85:
+            return 'pantalon'
+        
+        return 'vêtement'
+        
+    except Exception as e:
+        print(f"   ⚠️ Erreur type: {e}")
+        return 'vêtement'
     
     def _default_result(self):
         """Résultat par défaut en cas d'erreur"""
@@ -250,3 +272,4 @@ if __name__ == "__main__":
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print("Usage: python image_analyzer.py chemin/vers/image.jpg")
+
