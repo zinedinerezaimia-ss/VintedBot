@@ -211,6 +211,11 @@ HTML_TEMPLATE = """
         <div class="edit-form" id="editForm">
             <h2>✏️ Vérifiez et corrigez les informations</h2>
             
+            <div class="info-box price-box" style="margin-bottom: 20px;">
+                <strong>💰 Prix suggéré :</strong>
+                <p id="suggestedPrice"></p>
+            </div>
+            
             <div class="form-group">
                 <label>Type de produit *</label>
                 <select id="productType">
@@ -347,6 +352,18 @@ HTML_TEMPLATE = """
                 const data = await response.json();
 
                 if (data.success) {
+                    // Afficher le prix suggéré
+                    const priceInfo = await fetch('/get_price', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({product_info: data.produit})
+                    }).then(r => r.json());
+                    
+                    if (priceInfo.success) {
+                        document.getElementById('suggestedPrice').textContent = 
+                            `${priceInfo.prix.prix_recommande}€ (Fourchette: ${priceInfo.prix.prix_min}€ - ${priceInfo.prix.prix_max}€)`;
+                    }
+                    
                     // Pré-remplir le formulaire
                     document.getElementById('productType').value = data.produit.type;
                     document.getElementById('brand').value = data.produit.marque !== 'À préciser' ? data.produit.marque : '';
@@ -423,22 +440,37 @@ def index():
 def analyze():
     """Analyse initiale de l'image"""
     try:
+        print("=" * 50)
+        print("🔥 DEBUT ANALYSE")
+        
         if 'image' not in request.files:
+            print("❌ Aucune image dans request.files")
             return jsonify({'success': False, 'error': 'Aucune image fournie'})
         
         file = request.files['image']
         if file.filename == '':
+            print("❌ Filename vide")
             return jsonify({'success': False, 'error': 'Aucun fichier sélectionné'})
+        
+        print(f"✅ Fichier reçu: {file.filename}")
         
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
+        print(f"✅ Fichier sauvegardé: {filepath}")
+        print("🚀 Appel de l'analyseur...")
+        
         # Analyser l'image
         product_info = image_analyzer.analyze_product(filepath)
         
+        print(f"✅ Résultat analyse: {product_info}")
+        
         # Supprimer le fichier temporaire
         os.remove(filepath)
+        print("✅ Fichier temporaire supprimé")
+        
+        print("=" * 50)
         
         return jsonify({
             'success': True,
@@ -446,6 +478,9 @@ def analyze():
         })
         
     except Exception as e:
+        print(f"❌❌❌ ERREUR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/generate', methods=['POST'])
@@ -464,6 +499,24 @@ def generate():
         return jsonify({
             'success': True,
             'annonce': listing
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/get_price', methods=['POST'])
+def get_price():
+    """Calcule le prix suggéré"""
+    try:
+        data = request.get_json()
+        product_info = data['product_info']
+        
+        # Analyser les prix
+        price_info = price_analyzer.calculate_optimal_price(product_info)
+        
+        return jsonify({
+            'success': True,
+            'prix': price_info
         })
         
     except Exception as e:
