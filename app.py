@@ -218,15 +218,20 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label>Type de produit *</label>
-                <select id="productType">
+                <select id="productType" onchange="updateDescription()">
                     <option value="t-shirt">T-shirt</option>
-                    <option value="maillot">Maillot de sport</option>
-                    <option value="pull">Pull / Sweat</option>
+                    <option value="maillot">Maillot</option>
+                    <option value="pull">Pull</option>
+                    <option value="sweat">Sweat</option>
                     <option value="pantalon">Pantalon</option>
                     <option value="jean">Jean</option>
+                    <option value="short">Short</option>
                     <option value="robe">Robe</option>
+                    <option value="jupe">Jupe</option>
                     <option value="veste">Veste</option>
+                    <option value="manteau">Manteau</option>
                     <option value="chaussures">Chaussures</option>
+                    <option value="basket">Basket</option>
                     <option value="accessoire">Accessoire</option>
                 </select>
             </div>
