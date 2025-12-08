@@ -8,45 +8,42 @@ class DescriptionGenerator:
     """Descriptions qui CARTONNENT sur Vinted"""
     
     def __init__(self):
-        # Templates optimisés SEO Vinted par type
+        # Templates optimisés SEO Vinted COMPLETS
         self.templates = {
-            "pantalon": [
-                "{marque_txt}Pantalon {couleur} {style}. Coupe {coupe}, taille parfaitement. {etat_txt}. Parfait pour un look {occasion} ! 👖 Envoi rapide et soigné 📦",
-                "{marque_txt}Super pantalon {couleur} {style} ! {etat_txt}, porté {frequence}. Taille nickel, très confortable. Idéal {saison} ! 👌 Expédition rapide 📦",
-                "{marque_txt}Pantalon {couleur} de qualité. {etat_txt}, {coupe}. S'associe avec tout ! Look {occasion}. Envoi soigné 📦✨"
-            ],
-            "jean": [
-                "{marque_txt}Jean {couleur} {style}. {etat_txt}, coupe {coupe}. Denim de qualité, très confortable ! 👖 Envoi rapide 📦",
-                "{marque_txt}Super jean {couleur} ! {etat_txt}, porté {frequence}. Coupe parfaite, taille bien. Indispensable ! ⭐ Expédition soignée 📦"
+            "maillot": [
+                "{marque_txt}Maillot {couleur} authentique et officiel ! {etat_txt}, porté {frequence}. {tech_txt}. Collector pour les vrais fans ! ⚽ Logo et écusson en parfait état. Idéal pour supporter votre équipe ou pour votre collection ! Taille {taille_txt}. Envoi rapide et soigné en colis protégé 📦✨",
+                "{marque_txt}Superbe maillot de football {couleur} ! {etat_txt}, {tech_txt}. Parfait pour le sport ou en casual. Logo officiel, matière respirante et confortable. Pour les passionnés de foot ! ⚽ Taille {taille_txt}. Expédition rapide et soignée 📦",
+                "{marque_txt}Maillot {couleur} collector ! {etat_txt}. Technologie {tech_txt} pour performances optimales. Écusson et sponsors intacts. Parfait état, porté {frequence}. Un must-have pour tout fan ! ⚽🏆 Taille {taille_txt}. Envoi protégé 📦"
             ],
             "t-shirt": [
-                "{marque_txt}T-shirt {couleur} {style}. {etat_txt}, {matiere}. Parfait pour l'été ou en layering ! 👕 Envoi rapide 📦",
-                "{marque_txt}Tee-shirt {couleur} confortable. {etat_txt}, porté {frequence}. Basique indispensable ! ✨ Expédition soignée 📦"
+                "{marque_txt}T-shirt {couleur} {style}. {etat_txt}, {matiere}. Coupe {coupe}, très confortable au quotidien. Parfait pour un look {occasion} ! S'associe facilement avec tout. Basique indispensable de votre garde-robe. 👕 Taille {taille_txt}. Envoi rapide 📦",
+                "{marque_txt}Tee-shirt {couleur} de qualité. {etat_txt}, matière {matiere} agréable à porter. Coupe {coupe}, tombe parfaitement. Idéal {saison}. Look casual et moderne ! ✨ Taille {taille_txt}. Expédition soignée 📦"
             ],
-            "maillot": [
-                "{marque_txt}Maillot {couleur} authentique ! {etat_txt}, {matiere}. Pour les vrais fans ! ⚽ Collector. Envoi rapide 📦",
-                "{marque_txt}Maillot de sport {couleur}. {etat_txt}, technologie {tech}. Parfait training ou collection ! 🏆 Expédition soignée 📦"
-            ],
-            "pull": [
-                "{marque_txt}Pull {couleur} tout doux. {etat_txt}, {matiere}. Parfait pour l'automne/hiver ! 🍂 Très chaud. Envoi rapide 📦",
-                "{marque_txt}Sweat {couleur} confortable. {etat_txt}, coupe {coupe}. Indispensable garde-robe ! ⭐ Expédition soignée 📦"
+            "pantalon": [
+                "{marque_txt}Pantalon {couleur} {style}. {etat_txt}, coupe {coupe} moderne. Matière {matiere} confortable et résistante. Taille parfaitement, s'adapte à toutes les morphologies. Parfait pour un look {occasion} ! Poches fonctionnelles. 👖 Taille {taille_txt}. Envoi rapide et soigné 📦",
+                "{marque_txt}Super pantalon {couleur} ! {etat_txt}, porté {frequence}. Coupe {coupe}, très confortable toute la journée. Matière {matiere} de qualité. S'associe avec tout ! Indispensable garde-robe. 👌 Taille {taille_txt}. Expédition protégée 📦"
             ],
             "chaussures": [
-                "{marque_txt}Chaussures {couleur} {style}. {etat_txt}, semelle {semelle}. Très confortables ! 👟 Envoi rapide avec soin 📦",
-                "{marque_txt}Basket {couleur} stylée. {etat_txt}, portée {frequence}. Look moderne ! ⭐ Expédition soignée 📦"
+                "{marque_txt}Chaussures {couleur} {style}. {etat_txt}, semelle {semelle} en bon état. Intérieur propre et bien entretenu. Très confortables, portées {frequence}. Parfaites pour {occasion} ! Pointure {taille_txt}. Look moderne et élégant. 👟 Envoi en colis renforcé 📦",
+                "{marque_txt}Paire de chaussures {couleur} de qualité ! {etat_txt}. Semelle {semelle}, maintien parfait. Très bon confort de marche. Style {style}, s'associe avec tout ! 👞 Pointure {taille_txt}. Expédition rapide et protégée 📦"
+            ],
+            "bottine": [
+                "{marque_txt}Bottines {couleur} stylées ! {etat_txt}, cuir/matière {matiere}. Semelle {semelle}, talon {talon}. Très confortables, portées {frequence}. Parfaites pour {saison} ! Look élégant et moderne. 👢 Pointure {taille_txt}. Envoi soigné 📦",
+                "{marque_txt}Jolies bottines {couleur}. {etat_txt}. Finitions soignées, semelle {semelle}. Confort assuré toute la journée. Style {style}, indispensable ! ⭐ Pointure {taille_txt}. Expédition protégée 📦"
             ]
         }
         
-        # Variables dynamiques pour naturalité
+        # Variables dynamiques enrichies
         self.variables = {
-            "style": ["classique", "moderne", "casual", "élégant", "sport", "streetwear"],
-            "coupe": ["droite", "slim", "regular", "ajustée", "ample", "confortable"],
-            "occasion": ["décontracté", "casual", "chic", "sport", "quotidien", "travail"],
-            "saison": ["toute l'année", "été", "mi-saison", "automne-hiver"],
-            "frequence": ["peu", "avec soin", "occasionnellement"],
-            "matiere": ["coton", "polyester", "mélange coton", "matière agréable"],
-            "tech": ["respirant", "anti-transpiration", "performance"],
-            "semelle": ["confortable", "antidérapante", "souple", "renforcée"]
+            "style": ["classique", "moderne", "casual", "élégant", "sport", "streetwear", "tendance", "intemporel"],
+            "coupe": ["droite", "slim", "regular", "ajustée", "ample", "confortable", "moderne"],
+            "occasion": ["décontracté", "casual", "chic", "sport", "quotidien", "travail", "sorties"],
+            "saison": ["toute l'année", "été", "mi-saison", "automne-hiver", "toutes saisons"],
+            "frequence": ["peu", "avec soin", "occasionnellement", "quelques fois"],
+            "matiere": ["coton", "polyester", "mélange coton", "matière agréable", "tissu respirant"],
+            "tech": ["respirant Dri-FIT", "anti-transpiration", "performance", "Climacool", "respirant"],
+            "semelle": ["confortable", "antidérapante", "souple", "renforcée", "adhérente"],
+            "talon": ["moyen", "confortable", "stable", "3-4cm"]
         }
         
         # Textes d'état optimisés
@@ -110,19 +107,24 @@ class DescriptionGenerator:
         
         etat_txt = self.etat_texts.get(product_info['etat'], "Bon état")
         
+        taille = product_info.get('taille', 'À préciser')
+        taille_txt = taille if taille != 'À préciser' else 'voir photos'
+        
         # Variables aléatoires pour naturel
         variables = {
             "marque_txt": marque_txt,
             "couleur": product_info['couleur'],
             "etat_txt": etat_txt,
+            "taille_txt": taille_txt,
             "style": random.choice(self.variables['style']),
             "coupe": random.choice(self.variables['coupe']),
             "occasion": random.choice(self.variables['occasion']),
             "saison": random.choice(self.variables['saison']),
             "frequence": random.choice(self.variables['frequence']),
             "matiere": random.choice(self.variables['matiere']),
-            "tech": random.choice(self.variables['tech']),
-            "semelle": random.choice(self.variables['semelle'])
+            "tech_txt": random.choice(self.variables['tech']),
+            "semelle": random.choice(self.variables['semelle']),
+            "talon": random.choice(self.variables['talon'])
         }
         
         # Générer
