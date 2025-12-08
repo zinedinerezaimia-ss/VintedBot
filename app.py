@@ -271,10 +271,15 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label>Détails / Description courte</label>
-                <input type="text" id="details" placeholder="Ex: Logo Real Madrid, motif fleuri...">
+                <input type="text" id="details" placeholder="Ex: Logo OM, motif fleuri..." oninput="updateDescription()">
             </div>
             
-            <button type="button" class="btn" onclick="generateListing()">✨ Générer l'annonce</button>
+            <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107; margin-top: 20px;">
+                <strong>📄 Aperçu description :</strong>
+                <p id="descriptionPreview" style="margin-top: 10px; font-style: italic;">La description se mettra à jour automatiquement...</p>
+            </div>
+            
+            <button type="button" class="btn" onclick="generateListing()">✨ Générer l'annonce finale</button>
         </div>
         
         <div class="result" id="result">
@@ -388,6 +393,46 @@ HTML_TEMPLATE = """
                 document.getElementById('submitBtn').disabled = false;
             }
         };
+
+        async function updateDescription() {
+            // Récupérer les valeurs actuelles
+            const productInfo = {
+                type: document.getElementById('productType').value,
+                marque: document.getElementById('brand').value || 'À préciser',
+                couleur: document.getElementById('color').value || 'multicolore',
+                taille: document.getElementById('size').value,
+                etat: document.getElementById('condition').value,
+                details: document.getElementById('details').value || 'Article de qualité'
+            };
+            
+            // Générer la description en temps réel (côté client, rapide)
+            const desc = generateQuickDescription(productInfo);
+            document.getElementById('descriptionPreview').textContent = desc;
+        }
+        
+        function generateQuickDescription(info) {
+            const marqueText = info.marque !== 'À préciser' ? `${info.marque} - ` : '';
+            
+            const etatMap = {
+                'Neuf': 'Neuf avec étiquette',
+                'Très bon': 'Excellent état',
+                'Bon': 'Très bon état',
+                'Satisfaisant': 'Bon état'
+            };
+            const etatText = etatMap[info.etat] || 'Bon état';
+            
+            // Templates simples par type
+            const templates = {
+                'maillot': `${marqueText}Maillot ${info.couleur} authentique ! ${etatText}. Pour les vrais fans ! ⚽ Envoi rapide 📦`,
+                'pantalon': `${marqueText}Pantalon ${info.couleur} classique. ${etatText}, coupe parfaite ! 👖 Envoi rapide 📦`,
+                'jean': `${marqueText}Jean ${info.couleur}. ${etatText}, très confortable ! 👖 Envoi rapide 📦`,
+                't-shirt': `${marqueText}T-shirt ${info.couleur}. ${etatText}, parfait basique ! 👕 Envoi rapide 📦`,
+                'pull': `${marqueText}Pull ${info.couleur} tout doux. ${etatText} ! 🧶 Envoi rapide 📦`,
+                'sweat': `${marqueText}Sweat ${info.couleur} confortable. ${etatText} ! 👔 Envoi rapide 📦`
+            };
+            
+            return templates[info.type] || `${marqueText}${info.type.charAt(0).toUpperCase() + info.type.slice(1)} ${info.couleur}. ${etatText} ! Envoi rapide 📦`;
+        }
 
         async function generateListing() {
             loading.style.display = 'block';
