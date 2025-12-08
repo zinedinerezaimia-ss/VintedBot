@@ -33,20 +33,23 @@ class ImageAnalyzer:
 RÉPONDS UNIQUEMENT avec ce JSON (rien d'autre) :
 {
   "type": "un mot parmi: pantalon, jean, short, t-shirt, maillot, pull, sweat, robe, jupe, veste, manteau, chaussures, basket, bottine",
-  "marque": "marque visible (Nike/Adidas/Zara/H&M/Puma/Uniqlo) ou 'Non visible'",
+  "marque": "marque visible (Nike/Adidas/Puma/Reebok/Zara/H&M/Uniqlo) ou 'Non visible'",
   "couleur": "couleur EXACTE en français (noir/blanc/bleu/rouge/vert/gris/beige/marron)",
   "etat": "Neuf/Très bon/Bon/Satisfaisant",
   "details": "description courte précise (matière, style, particularités)"
 }
 
 RÈGLES CRITIQUES:
-- Si image montre un PANTALON → type="pantalon" (JAMAIS pull/sweat!)
-- Si JEAN → type="jean"
+- Si vêtement de SPORT avec logo d'équipe/club → type="maillot" (PAS t-shirt!)
+- Si PANTALON → type="pantalon" (JAMAIS pull/sweat!)
+- Si JEAN en denim → type="jean"
+- Logos Puma/Nike/Adidas sur vêtement sport = généralement MAILLOT
 - Couleur = la plus dominante SEULEMENT
 - Details = max 15 mots
 
-EXEMPLE pour un pantalon noir:
-{"type":"pantalon","marque":"Non visible","couleur":"noir","etat":"Bon","details":"Pantalon noir classique, coupe droite"}"""
+EXEMPLES:
+Maillot OM bleu: {"type":"maillot","marque":"Puma","couleur":"bleu","etat":"Bon","details":"Maillot OM authentique"}
+Pantalon noir: {"type":"pantalon","marque":"Non visible","couleur":"noir","etat":"Bon","details":"Pantalon noir classique"}"""
 
             # Payload pour Gemini
             payload = {
