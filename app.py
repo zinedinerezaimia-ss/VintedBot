@@ -1,5 +1,5 @@
 """
-Interface Web améliorée avec correction manuelle
+Interface Web Bot Vinted - Version finale
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -70,10 +70,6 @@ HTML_TEMPLATE = """
             border-color: #764ba2;
             background: #f0f1ff;
         }
-        .upload-zone.dragover {
-            background: #e8e9ff;
-            border-color: #764ba2;
-        }
         input[type="file"] { display: none; }
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -99,7 +95,6 @@ HTML_TEMPLATE = """
             margin: 20px auto;
             display: none;
             border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         .loading {
             display: none;
@@ -142,20 +137,12 @@ HTML_TEMPLATE = """
             border-radius: 8px;
             font-size: 16px;
         }
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
         .result {
             display: none;
             margin-top: 30px;
             padding: 30px;
             background: #f8f9ff;
             border-radius: 15px;
-        }
-        .result h2 {
-            color: #667eea;
-            margin-bottom: 20px;
         }
         .info-box {
             background: white;
@@ -177,13 +164,6 @@ HTML_TEMPLATE = """
             cursor: pointer;
             margin-top: 10px;
         }
-        .copy-btn:hover { background: #00a085; }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #666;
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
@@ -193,15 +173,12 @@ HTML_TEMPLATE = """
         
         <form id="uploadForm" enctype="multipart/form-data">
             <div class="upload-zone" id="dropZone">
-                <h2>📸 Déposez vos photos ici</h2>
-                <p>Jusqu'à 8 photos (comme Vinted)</p>
-                <input type="file" id="fileInput" name="images" accept="image/*" multiple required>
+                <h2>📸 Déposez votre photo ici</h2>
+                <p>ou cliquez pour sélectionner</p>
+                <input type="file" id="fileInput" name="image" accept="image/*" required>
             </div>
             
-            <div id="previewContainer" style="display: none; margin: 20px 0;">
-                <h3 style="margin-bottom: 10px;">Photos sélectionnées :</h3>
-                <div id="previewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;"></div>
-            </div>
+            <img id="preview" alt="Aperçu">
             
             <button type="submit" class="btn" id="submitBtn">🔍 Analyser mon produit</button>
         </form>
@@ -212,7 +189,7 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="edit-form" id="editForm">
-            <h2>✏️ Vérifiez et corrigez les informations</h2>
+            <h2>✏️ Vérifiez et corrigez</h2>
             
             <div class="info-box price-box" style="margin-bottom: 20px;">
                 <strong>💰 Prix suggéré :</strong>
@@ -220,69 +197,54 @@ HTML_TEMPLATE = """
             </div>
             
             <div class="form-group">
-                <label>Type de produit *</label>
-                <select id="productType" onchange="updateDescription()">
+                <label>Type *</label>
+                <select id="productType" onchange="updateDesc()">
                     <option value="t-shirt">T-shirt</option>
                     <option value="maillot">Maillot</option>
                     <option value="pull">Pull</option>
-                    <option value="sweat">Sweat</option>
                     <option value="pantalon">Pantalon</option>
-                    <option value="jean">Jean</option>
-                    <option value="short">Short</option>
-                    <option value="robe">Robe</option>
-                    <option value="jupe">Jupe</option>
-                    <option value="veste">Veste</option>
-                    <option value="manteau">Manteau</option>
                     <option value="chaussures">Chaussures</option>
-                    <option value="basket">Basket</option>
-                    <option value="accessoire">Accessoire</option>
                 </select>
             </div>
             
             <div class="form-group">
                 <label>Marque</label>
-                <input type="text" id="brand" placeholder="Nike, Adidas, Zara..." oninput="updateDescription()">
+                <input type="text" id="brand" placeholder="Nike, Adidas..." oninput="updateDesc()">
             </div>
             
             <div class="form-group">
-                <label>Couleur principale *</label>
-                <input type="text" id="color" placeholder="blanc, noir, rouge..." required oninput="updateDescription()">
+                <label>Couleur *</label>
+                <input type="text" id="color" required oninput="updateDesc()">
             </div>
             
             <div class="form-group">
                 <label>Taille</label>
-                <select id="size" onchange="updateDescription()">
+                <select id="size" onchange="updateDesc()">
                     <option value="À préciser">À préciser</option>
                     <option value="XS">XS</option>
                     <option value="S">S</option>
                     <option value="M">M</option>
                     <option value="L">L</option>
                     <option value="XL">XL</option>
-                    <option value="XXL">XXL</option>
                 </select>
             </div>
             
             <div class="form-group">
                 <label>État *</label>
-                <select id="condition" onchange="updateDescription()">
-                    <option value="Neuf">Neuf avec étiquette</option>
-                    <option value="Très bon">Très bon état</option>
-                    <option value="Bon" selected>Bon état</option>
-                    <option value="Satisfaisant">État satisfaisant</option>
+                <select id="condition" onchange="updateDesc()">
+                    <option value="Neuf">Neuf</option>
+                    <option value="Très bon">Très bon</option>
+                    <option value="Bon" selected>Bon</option>
+                    <option value="Satisfaisant">Satisfaisant</option>
                 </select>
             </div>
             
-            <div class="form-group">
-                <label>Détails / Description courte</label>
-                <input type="text" id="details" placeholder="Ex: Logo OM, motif fleuri..." oninput="updateDescription()">
+            <div class="info-box" style="background: #fff3cd;">
+                <strong>📄 Aperçu :</strong>
+                <p id="descPreview" style="margin-top:10px; font-style:italic;">La description se met à jour...</p>
             </div>
             
-            <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107; margin-top: 20px;">
-                <strong>📄 Aperçu description :</strong>
-                <p id="descriptionPreview" style="margin-top: 10px; font-style: italic;">La description se mettra à jour automatiquement...</p>
-            </div>
-            
-            <button type="button" class="btn" onclick="generateListing()">✨ Générer l'annonce finale</button>
+            <button type="button" class="btn" onclick="generateFinal()">✨ Générer l'annonce</button>
         </div>
         
         <div class="result" id="result">
@@ -291,168 +253,103 @@ HTML_TEMPLATE = """
             <div class="info-box">
                 <strong>📝 Titre :</strong>
                 <p id="titre"></p>
-                <button class="copy-btn" onclick="copyText('titre')">Copier</button>
+                <button class="copy-btn" onclick="copy('titre')">Copier</button>
             </div>
             
             <div class="info-box price-box">
-                <strong>💰 Prix recommandé :</strong>
+                <strong>💰 Prix :</strong>
                 <p id="prix"></p>
             </div>
             
             <div class="info-box">
                 <strong>📄 Description :</strong>
                 <p id="description"></p>
-                <button class="copy-btn" onclick="copyText('description')">Copier</button>
+                <button class="copy-btn" onclick="copy('description')">Copier</button>
             </div>
             
             <button class="btn" onclick="location.reload()">🔄 Nouvelle annonce</button>
-        </div>
-        
-        <div class="footer">
-            <p>Créé avec ❤️ • 100% Gratuit et Open Source</p>
         </div>
     </div>
 
     <script>
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
-        const previewContainer = document.getElementById('previewContainer');
-        const previewGrid = document.getElementById('previewGrid');
+        const preview = document.getElementById('preview');
         const form = document.getElementById('uploadForm');
         const loading = document.getElementById('loading');
         const editForm = document.getElementById('editForm');
         const result = document.getElementById('result');
-        let selectedFiles = [];
 
         dropZone.onclick = () => fileInput.click();
-        dropZone.ondragover = (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        };
-        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-        dropZone.ondrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            fileInput.files = e.dataTransfer.files;
-            showPreviews();
-        };
-
-        fileInput.onchange = showPreviews;
-        
-        function showPreviews() {
-            const files = Array.from(fileInput.files).slice(0, 8); // Max 8 photos
-            selectedFiles = files;
-            
-            if (files.length > 0) {
-                previewGrid.innerHTML = '';
-                previewContainer.style.display = 'block';
-                
-                files.forEach((file, index) => {
-                    const img = document.createElement('img');
-                    img.src = URL.createObjectURL(file);
-                    img.style.width = '100%';
-                    img.style.height = '120px';
-                    img.style.objectFit = 'cover';
-                    img.style.borderRadius = '10px';
-                    img.style.border = index === 0 ? '3px solid #667eea' : '2px solid #ddd';
-                    img.title = index === 0 ? 'Photo principale' : `Photo ${index + 1}`;
-                    previewGrid.appendChild(img);
-                });
+        fileInput.onchange = () => {
+            const file = fileInput.files[0];
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
             }
-        }
+        };
 
         form.onsubmit = async (e) => {
             e.preventDefault();
-            
             const formData = new FormData(form);
             
             loading.style.display = 'block';
             editForm.style.display = 'none';
-            result.style.display = 'none';
             document.getElementById('submitBtn').disabled = true;
 
             try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
+                const res = await fetch('/analyze', {method: 'POST', body: formData});
+                const data = await res.json();
 
                 if (data.success) {
-                    // Afficher le prix suggéré
-                    const priceInfo = await fetch('/get_price', {
+                    const priceRes = await fetch('/get_price', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({product_info: data.produit})
-                    }).then(r => r.json());
+                    });
+                    const priceData = await priceRes.json();
                     
-                    if (priceInfo.success) {
+                    if (priceData.success) {
                         document.getElementById('suggestedPrice').textContent = 
-                            `${priceInfo.prix.prix_recommande}€ (Fourchette: ${priceInfo.prix.prix_min}€ - ${priceInfo.prix.prix_max}€)`;
+                            `${priceData.prix.prix_recommande}€ (${priceData.prix.prix_min}€ - ${priceData.prix.prix_max}€)`;
                     }
                     
-                    // Pré-remplir le formulaire
                     document.getElementById('productType').value = data.produit.type;
                     document.getElementById('brand').value = data.produit.marque !== 'À préciser' ? data.produit.marque : '';
                     document.getElementById('color').value = data.produit.couleur;
                     document.getElementById('size').value = data.produit.taille;
                     document.getElementById('condition').value = data.produit.etat;
-                    document.getElementById('details').value = data.produit.details;
                     
+                    updateDesc();
                     editForm.style.display = 'block';
                 } else {
                     alert('Erreur: ' + data.error);
                 }
             } catch (error) {
-                alert('Erreur de connexion: ' + error);
+                alert('Erreur: ' + error);
             } finally {
                 loading.style.display = 'none';
                 document.getElementById('submitBtn').disabled = false;
             }
         };
 
-        async function updateDescription() {
-            // Récupérer les valeurs actuelles
-            const productInfo = {
-                type: document.getElementById('productType').value,
-                marque: document.getElementById('brand').value || 'À préciser',
-                couleur: document.getElementById('color').value || 'multicolore',
-                taille: document.getElementById('size').value,
-                etat: document.getElementById('condition').value,
-                details: document.getElementById('details').value || 'Article de qualité'
-            };
+        function updateDesc() {
+            const type = document.getElementById('productType').value;
+            const marque = document.getElementById('brand').value || 'À préciser';
+            const couleur = document.getElementById('color').value || 'multicolore';
+            const etat = document.getElementById('condition').value;
             
-            // Générer la description en temps réel (côté client, rapide)
-            const desc = generateQuickDescription(productInfo);
-            document.getElementById('descriptionPreview').textContent = desc;
-        }
-        
-        function generateQuickDescription(info) {
-            const marqueText = info.marque !== 'À préciser' ? `${info.marque} - ` : '';
-            
-            const etatMap = {
-                'Neuf': 'Neuf avec étiquette',
-                'Très bon': 'Excellent état',
-                'Bon': 'Très bon état',
-                'Satisfaisant': 'Bon état'
-            };
-            const etatText = etatMap[info.etat] || 'Bon état';
-            
-            // Templates simples par type
             const templates = {
-                'maillot': `${marqueText}Maillot ${info.couleur} authentique ! ${etatText}. Pour les vrais fans ! ⚽ Envoi rapide 📦`,
-                'pantalon': `${marqueText}Pantalon ${info.couleur} classique. ${etatText}, coupe parfaite ! 👖 Envoi rapide 📦`,
-                'jean': `${marqueText}Jean ${info.couleur}. ${etatText}, très confortable ! 👖 Envoi rapide 📦`,
-                't-shirt': `${marqueText}T-shirt ${info.couleur}. ${etatText}, parfait basique ! 👕 Envoi rapide 📦`,
-                'pull': `${marqueText}Pull ${info.couleur} tout doux. ${etatText} ! 🧶 Envoi rapide 📦`,
-                'sweat': `${marqueText}Sweat ${info.couleur} confortable. ${etatText} ! 👔 Envoi rapide 📦`
+                'maillot': `${marque !== 'À préciser' ? marque + ' - ' : ''}Maillot ${couleur} authentique ! Excellent état. Pour les vrais fans ! ⚽ Envoi rapide 📦`,
+                'pantalon': `${marque !== 'À préciser' ? marque + ' - ' : ''}Pantalon ${couleur}. ${etat}. Coupe parfaite ! 👖 Envoi rapide 📦`,
+                't-shirt': `${marque !== 'À préciser' ? marque + ' - ' : ''}T-shirt ${couleur}. ${etat} ! 👕 Envoi rapide 📦`,
+                'chaussures': `${marque !== 'À préciser' ? marque + ' - ' : ''}Chaussures ${couleur}. ${etat}. Confortables ! 👟 Envoi rapide 📦`
             };
             
-            return templates[info.type] || `${marqueText}${info.type.charAt(0).toUpperCase() + info.type.slice(1)} ${info.couleur}. ${etatText} ! Envoi rapide 📦`;
+            document.getElementById('descPreview').textContent = templates[type] || templates['t-shirt'];
         }
 
-        async function generateListing() {
+        async function generateFinal() {
             loading.style.display = 'block';
             
             const productInfo = {
@@ -462,22 +359,22 @@ HTML_TEMPLATE = """
                 taille: document.getElementById('size').value,
                 etat: document.getElementById('condition').value,
                 matiere: 'À préciser',
-                details: document.getElementById('details').value || 'Article de qualité'
+                details: 'Article de qualité'
             };
             
             try {
-                const response = await fetch('/generate', {
+                const res = await fetch('/generate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({product_info: productInfo})
                 });
                 
-                const data = await response.json();
+                const data = await res.json();
                 
                 if (data.success) {
                     document.getElementById('titre').textContent = data.annonce.titre;
                     document.getElementById('prix').textContent = 
-                        `${data.annonce.prix}€ (Fourchette: ${data.annonce.prix_min}€ - ${data.annonce.prix_max}€)`;
+                        `${data.annonce.prix}€ (${data.annonce.prix_min}€ - ${data.annonce.prix_max}€)`;
                     document.getElementById('description').textContent = data.annonce.description;
                     
                     editForm.style.display = 'none';
@@ -490,7 +387,7 @@ HTML_TEMPLATE = """
             }
         }
 
-        function copyText(id) {
+        function copy(id) {
             const text = document.getElementById(id).textContent;
             navigator.clipboard.writeText(text);
             alert('✅ Copié !');
@@ -506,87 +403,40 @@ def index():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    """Analyse initiale de l'image"""
     try:
-        print("=" * 50)
-        print("🔥 DEBUT ANALYSE")
-        
         if 'image' not in request.files:
-            print("❌ Aucune image dans request.files")
-            return jsonify({'success': False, 'error': 'Aucune image fournie'})
+            return jsonify({'success': False, 'error': 'Aucune image'})
         
         file = request.files['image']
-        if file.filename == '':
-            print("❌ Filename vide")
-            return jsonify({'success': False, 'error': 'Aucun fichier sélectionné'})
-        
-        print(f"✅ Fichier reçu: {file.filename}")
-        
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        print(f"✅ Fichier sauvegardé: {filepath}")
-        print("🚀 Appel de l'analyseur...")
-        
-        # Analyser l'image
         product_info = image_analyzer.analyze_product(filepath)
-        
-        print(f"✅ Résultat analyse: {product_info}")
-        
-        # Supprimer le fichier temporaire
         os.remove(filepath)
-        print("✅ Fichier temporaire supprimé")
         
-        print("=" * 50)
-        
-        return jsonify({
-            'success': True,
-            'produit': product_info
-        })
-        
-    except Exception as e:
-        print(f"❌❌❌ ERREUR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/generate', methods=['POST'])
-def generate():
-    """Génère l'annonce finale"""
-    try:
-        data = request.get_json()
-        product_info = data['product_info']
-        
-        # Analyser les prix
-        price_info = price_analyzer.calculate_optimal_price(product_info)
-        
-        # Générer l'annonce
-        listing = desc_generator.create_full_listing(product_info, price_info)
-        
-        return jsonify({
-            'success': True,
-            'annonce': listing
-        })
-        
+        return jsonify({'success': True, 'produit': product_info})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get_price', methods=['POST'])
 def get_price():
-    """Calcule le prix suggéré"""
     try:
         data = request.get_json()
         product_info = data['product_info']
-        
-        # Analyser les prix
         price_info = price_analyzer.calculate_optimal_price(product_info)
-        
-        return jsonify({
-            'success': True,
-            'prix': price_info
-        })
-        
+        return jsonify({'success': True, 'prix': price_info})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    try:
+        data = request.get_json()
+        product_info = data['product_info']
+        price_info = price_analyzer.calculate_optimal_price(product_info)
+        listing = desc_generator.create_full_listing(product_info, price_info)
+        return jsonify({'success': True, 'annonce': listing})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
