@@ -238,17 +238,17 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label>Marque</label>
-                <input type="text" id="brand" placeholder="Nike, Adidas, Zara...">
+                <input type="text" id="brand" placeholder="Nike, Adidas, Zara..." oninput="updateDescription()">
             </div>
             
             <div class="form-group">
                 <label>Couleur principale *</label>
-                <input type="text" id="color" placeholder="blanc, noir, rouge..." required>
+                <input type="text" id="color" placeholder="blanc, noir, rouge..." required oninput="updateDescription()">
             </div>
             
             <div class="form-group">
                 <label>Taille</label>
-                <select id="size">
+                <select id="size" onchange="updateDescription()">
                     <option value="À préciser">À préciser</option>
                     <option value="XS">XS</option>
                     <option value="S">S</option>
@@ -261,7 +261,7 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label>État *</label>
-                <select id="condition">
+                <select id="condition" onchange="updateDescription()">
                     <option value="Neuf">Neuf avec étiquette</option>
                     <option value="Très bon">Très bon état</option>
                     <option value="Bon" selected>Bon état</option>
