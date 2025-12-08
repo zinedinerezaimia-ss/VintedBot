@@ -192,7 +192,7 @@ class PriceAnalyzer:
         # Prix de base par type
         base_prices = {
             "t-shirt": 8,
-            "maillot": 20,
+            "maillot": 25,  # MAILLOTS = PLUS CHERS
             "pull": 15,
             "sweat": 18,
             "pantalon": 15,
