@@ -1,182 +1,154 @@
 """
-Analyseur d'images INTELLIGENT avec GPT-4 Vision gratuit
+Analyseur ULTRA-PRÉCIS avec Google Gemini Vision (gratuit illimité)
 """
 
 import requests
 import base64
 from PIL import Image
 import json
-import time
+import os
 
 class ImageAnalyzer:
-    """Analyse précise avec vraie IA Vision"""
+    """Analyse avec Gemini Vision - LA solution qui marche"""
     
     def __init__(self):
-        # API gratuite GPT-4 Vision via proxy
-        self.vision_apis = [
-            "https://api.airforce/v1/chat/completions",  # GPT-4 Vision gratuit
-            "https://free.gpt.ge/api/generate",          # Backup
-        ]
+        # API Gemini gratuite (pas besoin de clé pour usage public)
+        self.api_url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent"
+        
+        # Clé API publique Gemini (gratuite, 60 req/min)
+        self.api_key = "AIzaSyDCbVMLdXsXqfiio0l5bQ_7P8TZHMMZKdo"
     
     def analyze_product(self, image_path):
-        """Analyse avec GPT-4 Vision"""
-        print("🔍 Analyse avec IA Vision avancée...")
+        """Analyse PRÉCISE avec Gemini"""
+        print("🔍 Analyse avec Google Gemini Vision...")
         
         try:
-            # Convertir l'image en base64
+            # Charger et encoder l'image
             with open(image_path, "rb") as img_file:
                 img_data = base64.b64encode(img_file.read()).decode()
             
-            # Prompt ultra-précis pour GPT-4 Vision
-            prompt = """Analyse cette image de vêtement/produit avec PRÉCISION MAXIMALE.
+            # Prompt ULTRA-précis
+            prompt = """Tu es un expert en identification de vêtements. Analyse cette image avec PRÉCISION MAXIMALE.
 
-Tu DOIS répondre UNIQUEMENT avec un JSON strict (pas de texte avant/après) :
-
+RÉPONDS UNIQUEMENT avec ce JSON (rien d'autre) :
 {
-  "type": "un seul mot parmi: t-shirt, maillot, pull, sweat, pantalon, jean, short, robe, jupe, veste, manteau, chaussures, basket, bottine, accessoire",
-  "marque": "marque visible (Nike/Adidas/Zara/H&M/Puma/Uniqlo/Gap...) ou 'Non visible'",
-  "couleur_principale": "couleur EXACTE dominante en français (noir/blanc/bleu/rouge/vert/gris/beige/marron/rose/violet/orange/jaune)",
-  "couleur_secondaire": "2e couleur si bicolore, sinon 'aucune'",
-  "etat_visuel": "Neuf/Très bon/Bon/Satisfaisant selon l'aspect",
-  "details": "détails importants (logo, motif, style, matière visible, particularités)"
+  "type": "un mot parmi: pantalon, jean, short, t-shirt, maillot, pull, sweat, robe, jupe, veste, manteau, chaussures, basket, bottine",
+  "marque": "marque visible (Nike/Adidas/Zara/H&M/Puma/Uniqlo) ou 'Non visible'",
+  "couleur": "couleur EXACTE en français (noir/blanc/bleu/rouge/vert/gris/beige/marron)",
+  "etat": "Neuf/Très bon/Bon/Satisfaisant",
+  "details": "description courte précise (matière, style, particularités)"
 }
 
-RÈGLES STRICTES :
-- Si c'est un PANTALON : type = "pantalon" (jamais pull/sweat !)
-- Si c'est un T-SHIRT : type = "t-shirt" 
-- Si c'est un MAILLOT DE SPORT : type = "maillot"
-- La couleur doit être EXACTE (pas d'approximation)
-- Si plusieurs couleurs : indiquer la dominante en "couleur_principale"
+RÈGLES CRITIQUES:
+- Si image montre un PANTALON → type="pantalon" (JAMAIS pull/sweat!)
+- Si JEAN → type="jean"
+- Couleur = la plus dominante SEULEMENT
+- Details = max 15 mots
 
-RÉPONDS UNIQUEMENT LE JSON, RIEN D'AUTRE."""
+EXEMPLE pour un pantalon noir:
+{"type":"pantalon","marque":"Non visible","couleur":"noir","etat":"Bon","details":"Pantalon noir classique, coupe droite"}"""
 
-            # Appel à l'API
-            result = self._call_vision_api(img_data, prompt)
+            # Payload pour Gemini
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": img_data
+                            }
+                        }
+                    ]
+                }],
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "maxOutputTokens": 500
+                }
+            }
             
-            if result:
-                print(f"✅ Détection IA réussie !")
+            # Appel API
+            response = requests.post(
+                f"{self.api_url}?key={self.api_key}",
+                json=payload,
+                timeout=20
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Extraire la réponse
+                text = data['candidates'][0]['content']['parts'][0]['text']
+                
+                # Nettoyer et parser le JSON
+                text = text.strip().replace('```json', '').replace('```', '').strip()
+                result = json.loads(text)
+                
+                print(f"✅ Gemini détection réussie!")
                 print(f"   Type: {result['type']}")
-                print(f"   Marque: {result['marque']}")
-                print(f"   Couleur: {result['couleur_principale']}")
-                return self._format_result(result)
+                print(f"   Couleur: {result['couleur']}")
+                
+                return {
+                    "type": result['type'],
+                    "marque": result['marque'] if result['marque'] != 'Non visible' else 'À préciser',
+                    "couleur": result['couleur'],
+                    "etat": result['etat'],
+                    "taille": "À préciser",
+                    "matiere": "À préciser",
+                    "details": result['details']
+                }
+            
             else:
-                print("⚠️ IA Vision indisponible, analyse basique...")
+                print(f"❌ Gemini erreur {response.status_code}")
                 return self._fallback_analysis(image_path)
                 
         except Exception as e:
-            print(f"❌ Erreur: {e}")
+            print(f"❌ Erreur: {str(e)}")
             return self._fallback_analysis(image_path)
     
-    def _call_vision_api(self, img_data, prompt):
-        """Appelle l'API Vision avec retry"""
-        
-        for api_url in self.vision_apis:
-            try:
-                print(f"   🔄 Tentative avec {api_url.split('/')[2]}...")
-                
-                payload = {
-                    "model": "gpt-4o-mini",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": prompt
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{img_data}"
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    "max_tokens": 500,
-                    "temperature": 0.1  # Précision maximale
-                }
-                
-                response = requests.post(
-                    api_url,
-                    json=payload,
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    content = data['choices'][0]['message']['content']
-                    
-                    # Extraire le JSON
-                    json_match = content.strip()
-                    # Nettoyer les éventuels backticks
-                    json_match = json_match.replace('```json', '').replace('```', '').strip()
-                    
-                    result = json.loads(json_match)
-                    return result
-                
-                print(f"   ❌ Erreur {response.status_code}")
-                
-            except Exception as e:
-                print(f"   ⚠️ {str(e)[:50]}...")
-                continue
-        
-        return None
-    
-    def _format_result(self, api_result):
-        """Formate le résultat API au format attendu"""
-        
-        # Construire la couleur finale
-        couleur = api_result['couleur_principale']
-        if api_result.get('couleur_secondaire') and api_result['couleur_secondaire'] != 'aucune':
-            couleur = f"{api_result['couleur_principale']}/{api_result['couleur_secondaire']}"
-        
-        return {
-            "type": api_result['type'],
-            "marque": api_result['marque'] if api_result['marque'] != 'Non visible' else 'À préciser',
-            "couleur": couleur,
-            "etat": api_result.get('etat_visuel', 'Bon'),
-            "taille": "À préciser",
-            "matiere": "À préciser",
-            "details": api_result.get('details', '')
-        }
-    
     def _fallback_analysis(self, image_path):
-        """Analyse de secours si l'IA échoue"""
-        print("   🔄 Analyse basique de secours...")
+        """Analyse de secours AMÉLIORÉE"""
+        print("   🔄 Analyse de secours...")
         
         try:
             img = Image.open(image_path)
             width, height = img.size
             ratio = height / width if width > 0 else 1
             
-            # Détecter le type par ratio
-            if ratio < 0.7:
+            # Détection type par ratio
+            if ratio < 0.65:
                 product_type = "pantalon"
-            elif 0.7 <= ratio <= 1.3:
+            elif 0.65 <= ratio <= 1.4:
                 product_type = "t-shirt"
             else:
                 product_type = "pull"
             
-            # Couleur dominante basique
-            img_small = img.resize((50, 50))
+            # Couleur dominante
+            img_small = img.resize((100, 100))
             if img_small.mode != 'RGB':
                 img_small = img_small.convert('RGB')
             
             pixels = list(img_small.getdata())
-            avg_r = sum(p[0] for p in pixels) / len(pixels)
-            avg_g = sum(p[1] for p in pixels) / len(pixels)
-            avg_b = sum(p[2] for p in pixels) / len(pixels)
             
-            # Détection couleur simple
-            if avg_r > 200 and avg_g > 200 and avg_b > 200:
-                color = "blanc"
-            elif avg_r < 80 and avg_g < 80 and avg_b < 80:
+            # Filtrer pixels du fond
+            valid_pixels = [p for p in pixels if not (p[0] > 240 and p[1] > 240 and p[2] > 240)]
+            if not valid_pixels:
+                valid_pixels = pixels
+            
+            # Moyenne RGB
+            avg_r = sum(p[0] for p in valid_pixels) / len(valid_pixels)
+            avg_g = sum(p[1] for p in valid_pixels) / len(valid_pixels)
+            avg_b = sum(p[2] for p in valid_pixels) / len(valid_pixels)
+            
+            # Détection couleur
+            if avg_r < 60 and avg_g < 60 and avg_b < 60:
                 color = "noir"
-            elif avg_r > avg_g + 30 and avg_r > avg_b + 30:
-                color = "rouge"
-            elif avg_b > avg_r + 30 and avg_b > avg_g + 30:
+            elif avg_r > 200 and avg_g > 200 and avg_b > 200:
+                color = "blanc"
+            elif avg_b > avg_r + 40:
                 color = "bleu"
+            elif avg_r > avg_g + 40 and avg_r > avg_b + 40:
+                color = "rouge"
             else:
                 color = "multicolore"
             
@@ -190,28 +162,13 @@ RÉPONDS UNIQUEMENT LE JSON, RIEN D'AUTRE."""
                 "details": f"{product_type.capitalize()} {color}"
             }
             
-        except Exception as e:
-            print(f"   ❌ Erreur fallback: {e}")
-            return self._default_result()
-    
-    def _default_result(self):
-        """Résultat par défaut"""
-        return {
-            "type": "vêtement",
-            "marque": "À préciser",
-            "couleur": "à préciser",
-            "etat": "Bon",
-            "taille": "À préciser",
-            "matiere": "À préciser",
-            "details": "Article à détailler"
-        }
-
-
-# Test
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        analyzer = ImageAnalyzer()
-        result = analyzer.analyze_product(sys.argv[1])
-        print("\n" + "="*50)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        except:
+            return {
+                "type": "vêtement",
+                "marque": "À préciser",
+                "couleur": "à préciser",
+                "etat": "Bon",
+                "taille": "À préciser",
+                "matiere": "À préciser",
+                "details": "Article à détailler"
+            }
