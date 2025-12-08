@@ -489,10 +489,6 @@ HTML_TEMPLATE = """
 </html>
 """
 
-@app.route('/')
-def index():
-    return render_template_string(HTML_TEMPLATE)
-
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
@@ -501,21 +497,36 @@ def analyze():
         if not files or len(files) == 0:
             return jsonify({'success': False, 'error': 'Aucune image'})
         
-        # Analyser la première photo
-        first_file = files[0]
-        filename = secure_filename(first_file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        first_file.save(filepath)
+        print(f"🔥 {len(files)} photo(s) reçue(s)")
         
-        product_info = image_analyzer.analyze_product(filepath)
-        os.remove(filepath)
+        # Sauvegarder TOUTES les photos temporairement
+        image_paths = []
+        for i, file in enumerate(files[:8]):  # Max 8 photos
+            filename = secure_filename(f"temp_{i}_{file.filename}")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            image_paths.append(filepath)
+        
+        # Analyser TOUTES les photos ensemble
+        product_info = image_analyzer.analyze_multiple_products(image_paths)
+        
+        # Supprimer les fichiers temporaires
+        for path in image_paths:
+            try:
+                os.remove(path)
+            except:
+                pass
         
         return jsonify({
             'success': True,
             'produit': product_info,
             'nb_photos': len(files)
         })
+        
     except Exception as e:
+        print(f"❌ ERREUR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get_price', methods=['POST'])
@@ -541,3 +552,4 @@ def generate():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
