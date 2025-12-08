@@ -1,135 +1,140 @@
 """
-Générateur de descriptions 100% fiable avec templates
-Pas d'appels API externes
+Générateur de descriptions OPTIMISÉES pour l'algo Vinted
 """
 
 import random
 
 class DescriptionGenerator:
-    """Génère des descriptions attractives avec templates"""
+    """Descriptions qui CARTONNENT sur Vinted"""
     
     def __init__(self):
-        # Templates de descriptions par couleur et type
+        # Templates optimisés SEO Vinted par type
         self.templates = {
-            "t-shirt": {
-                "blanc": [
-                    "T-shirt blanc classique et intemporel. Parfait pour toutes les occasions ! Très bon état. Envoi rapide 📦",
-                    "Joli t-shirt blanc tout simple. Idéal pour un look casual ! État impeccable. Envoi soigné ✨",
-                    "T-shirt blanc basique et essentiel. S'associe avec tout ! Bon état. Envoi rapide 👕"
-                ],
-                "noir": [
-                    "T-shirt noir élégant et polyvalent. Parfait au quotidien ! Très bon état. Envoi rapide 📦",
-                    "Super t-shirt noir indémodable. Coupe classique, état nickel ! Envoi soigné ✨",
-                    "T-shirt noir basic mais efficace. Un incontournable ! Bon état. Envoi rapide 👕"
-                ],
-                "default": [
-                    "Joli t-shirt en {couleur}. Parfait pour un look décontracté ! Bon état. Envoi rapide 📦",
-                    "T-shirt {couleur} sympa et confortable. État nickel ! Envoi soigné ✨",
-                    "Super t-shirt couleur {couleur}. Idéal au quotidien ! Envoi rapide 👕"
-                ]
-            },
-            "pull": {
-                "default": [
-                    "Pull {couleur} tout doux et confortable. Parfait pour l'hiver ! Bon état. Envoi rapide 📦",
-                    "Joli pull couleur {couleur}. Chaud et agréable à porter ! État nickel. Envoi soigné ✨",
-                    "Super pull {couleur} bien chaud. Un indispensable ! Très bon état. Envoi rapide 🧶"
-                ]
-            },
-            "pantalon": {
-                "default": [
-                    "Pantalon {couleur} confortable. Coupe classique, très bon état ! Envoi rapide 📦",
-                    "Joli pantalon couleur {couleur}. Style et confort assurés ! État impeccable. Envoi soigné ✨",
-                    "Super pantalon {couleur} polyvalent. Parfait au quotidien ! Bon état. Envoi rapide 👖"
-                ]
-            },
-            "default": {
-                "default": [
-                    "Article {couleur} de qualité. Bon état général ! Envoi rapide et soigné 📦",
-                    "Joli vêtement couleur {couleur}. État nickel ! Envoi rapide ✨",
-                    "Article {couleur} sympa. Très bon état ! Envoi soigné 👌"
-                ]
-            }
+            "pantalon": [
+                "{marque_txt}Pantalon {couleur} {style}. Coupe {coupe}, taille parfaitement. {etat_txt}. Parfait pour un look {occasion} ! 👖 Envoi rapide et soigné 📦",
+                "{marque_txt}Super pantalon {couleur} {style} ! {etat_txt}, porté {frequence}. Taille nickel, très confortable. Idéal {saison} ! 👌 Expédition rapide 📦",
+                "{marque_txt}Pantalon {couleur} de qualité. {etat_txt}, {coupe}. S'associe avec tout ! Look {occasion}. Envoi soigné 📦✨"
+            ],
+            "jean": [
+                "{marque_txt}Jean {couleur} {style}. {etat_txt}, coupe {coupe}. Denim de qualité, très confortable ! 👖 Envoi rapide 📦",
+                "{marque_txt}Super jean {couleur} ! {etat_txt}, porté {frequence}. Coupe parfaite, taille bien. Indispensable ! ⭐ Expédition soignée 📦"
+            ],
+            "t-shirt": [
+                "{marque_txt}T-shirt {couleur} {style}. {etat_txt}, {matiere}. Parfait pour l'été ou en layering ! 👕 Envoi rapide 📦",
+                "{marque_txt}Tee-shirt {couleur} confortable. {etat_txt}, porté {frequence}. Basique indispensable ! ✨ Expédition soignée 📦"
+            ],
+            "maillot": [
+                "{marque_txt}Maillot {couleur} authentique ! {etat_txt}, {matiere}. Pour les vrais fans ! ⚽ Collector. Envoi rapide 📦",
+                "{marque_txt}Maillot de sport {couleur}. {etat_txt}, technologie {tech}. Parfait training ou collection ! 🏆 Expédition soignée 📦"
+            ],
+            "pull": [
+                "{marque_txt}Pull {couleur} tout doux. {etat_txt}, {matiere}. Parfait pour l'automne/hiver ! 🍂 Très chaud. Envoi rapide 📦",
+                "{marque_txt}Sweat {couleur} confortable. {etat_txt}, coupe {coupe}. Indispensable garde-robe ! ⭐ Expédition soignée 📦"
+            ],
+            "chaussures": [
+                "{marque_txt}Chaussures {couleur} {style}. {etat_txt}, semelle {semelle}. Très confortables ! 👟 Envoi rapide avec soin 📦",
+                "{marque_txt}Basket {couleur} stylée. {etat_txt}, portée {frequence}. Look moderne ! ⭐ Expédition soignée 📦"
+            ]
         }
         
-        # Emojis par type
-        self.emojis = {
-            "t-shirt": "👕",
-            "pull": "🧶",
-            "pantalon": "👖",
-            "veste": "🧥",
-            "robe": "👗",
-            "chaussures": "👟"
+        # Variables dynamiques pour naturalité
+        self.variables = {
+            "style": ["classique", "moderne", "casual", "élégant", "sport", "streetwear"],
+            "coupe": ["droite", "slim", "regular", "ajustée", "ample", "confortable"],
+            "occasion": ["décontracté", "casual", "chic", "sport", "quotidien", "travail"],
+            "saison": ["toute l'année", "été", "mi-saison", "automne-hiver"],
+            "frequence": ["peu", "avec soin", "occasionnellement"],
+            "matiere": ["coton", "polyester", "mélange coton", "matière agréable"],
+            "tech": ["respirant", "anti-transpiration", "performance"],
+            "semelle": ["confortable", "antidérapante", "souple", "renforcée"]
+        }
+        
+        # Textes d'état optimisés
+        self.etat_texts = {
+            "Neuf": "Neuf avec étiquette",
+            "Très bon": "Excellent état, comme neuf",
+            "Bon": "Très bon état général",
+            "Satisfaisant": "Bon état d'usage"
         }
     
     def generate_title(self, product_info):
-        """Génère un titre optimisé pour Vinted"""
+        """Titre SEO optimisé Vinted"""
         parts = []
         
-        # Type de produit
-        type_name = product_info['type'].capitalize()
-        parts.append(type_name)
+        # Marque en premier (important pour SEO)
+        if product_info.get('marque') not in ['À préciser', 'Non visible']:
+            parts.append(product_info['marque'])
+        
+        # Type
+        parts.append(product_info['type'].capitalize())
         
         # Couleur
-        couleur = product_info.get('couleur', '')
-        if couleur and couleur != "À préciser":
-            parts.append(couleur)
+        if product_info.get('couleur'):
+            parts.append(product_info['couleur'])
         
-        # Taille si disponible
-        taille = product_info.get('taille', '')
-        if taille and taille not in ["À préciser", "Non visible"]:
-            parts.append(f"T.{taille}")
+        # Taille
+        if product_info.get('taille') not in ['À préciser', 'Non visible']:
+            parts.append(f"T.{product_info['taille']}")
         
-        # Marque si disponible
-        marque = product_info.get('marque', '')
-        if marque and marque not in ["À préciser", "Non identifiée"]:
-            parts.insert(0, marque)
+        # État (important pour visibilité)
+        etat_short = {
+            "Neuf": "Neuf",
+            "Très bon": "TBE",
+            "Bon": "BE"
+        }
+        if product_info['etat'] in etat_short:
+            parts.append(etat_short[product_info['etat']])
         
-        # État
-        etat = product_info.get('etat', 'Bon')
-        parts.append(f"- {etat}")
-        
-        title = " ".join(parts)
-        
-        # Limiter à 80 caractères (limite Vinted)
-        if len(title) > 80:
-            title = title[:77] + "..."
-        
-        return title
+        return " ".join(parts)[:80]
     
     def generate_description(self, product_info, price_info):
-        """Génère une description attractive"""
+        """Description optimisée algo Vinted"""
         
         product_type = product_info['type'].lower()
-        couleur = product_info.get('couleur', 'neutre').lower()
         
-        # Récupérer les templates appropriés
-        type_templates = self.templates.get(product_type, self.templates['default'])
+        # Choisir template approprié
+        if product_type in self.templates:
+            templates = self.templates[product_type]
+        elif product_type in ['sweat', 'hoodie']:
+            templates = self.templates['pull']
+        elif product_type in ['basket', 'bottine']:
+            templates = self.templates['chaussures']
+        else:
+            templates = self.templates.get('pantalon')  # Défaut
         
-        # Chercher par couleur spécifique, sinon utiliser default
-        color_templates = type_templates.get(couleur, type_templates.get('default', []))
+        template = random.choice(templates)
         
-        # Si pas de templates, utiliser le default général
-        if not color_templates:
-            color_templates = self.templates['default']['default']
+        # Construire les variables
+        marque = product_info.get('marque', '')
+        marque_txt = f"{marque} - " if marque not in ['À préciser', 'Non visible'] else ""
         
-        # Choisir un template aléatoire
-        template = random.choice(color_templates)
+        etat_txt = self.etat_texts.get(product_info['etat'], "Bon état")
         
-        # Remplacer les variables
-        description = template.format(
-            couleur=couleur,
-            type=product_type
-        )
+        # Variables aléatoires pour naturel
+        variables = {
+            "marque_txt": marque_txt,
+            "couleur": product_info['couleur'],
+            "etat_txt": etat_txt,
+            "style": random.choice(self.variables['style']),
+            "coupe": random.choice(self.variables['coupe']),
+            "occasion": random.choice(self.variables['occasion']),
+            "saison": random.choice(self.variables['saison']),
+            "frequence": random.choice(self.variables['frequence']),
+            "matiere": random.choice(self.variables['matiere']),
+            "tech": random.choice(self.variables['tech']),
+            "semelle": random.choice(self.variables['semelle'])
+        }
         
-        # Ajouter un emoji si pertinent
-        emoji = self.emojis.get(product_type, "")
-        if emoji and emoji not in description:
-            description = description.replace("📦", f"{emoji} 📦")
-        
-        return description
+        # Générer
+        try:
+            description = template.format(**variables)
+            return description[:300]  # Limite Vinted
+        except:
+            # Fallback basique
+            return f"{marque_txt}{product_type.capitalize()} {product_info['couleur']}. {etat_txt}. Parfait état ! Envoi rapide 📦"
     
     def create_full_listing(self, product_info, price_info):
-        """Crée l'annonce complète"""
+        """Annonce complète optimisée"""
         
         title = self.generate_title(product_info)
         description = self.generate_description(product_info, price_info)
@@ -141,27 +146,3 @@ class DescriptionGenerator:
             "prix_min": price_info['prix_min'],
             "prix_max": price_info['prix_max']
         }
-
-
-# Test
-if __name__ == "__main__":
-    generator = DescriptionGenerator()
-    
-    test_product = {
-        "type": "t-shirt",
-        "marque": "À préciser",
-        "couleur": "blanc",
-        "taille": "M",
-        "etat": "Bon",
-        "matiere": "coton",
-        "details": "Article en bon état"
-    }
-    
-    test_price = {
-        "prix_recommande": 10.0,
-        "prix_min": 7.0,
-        "prix_max": 13.0
-    }
-    
-    result = generator.create_full_listing(test_product, test_price)
-    print(result)
