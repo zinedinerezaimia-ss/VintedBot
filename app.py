@@ -193,12 +193,15 @@ HTML_TEMPLATE = """
         
         <form id="uploadForm" enctype="multipart/form-data">
             <div class="upload-zone" id="dropZone">
-                <h2>📸 Déposez votre photo ici</h2>
-                <p>ou cliquez pour sélectionner</p>
-                <input type="file" id="fileInput" name="image" accept="image/*" required>
+                <h2>📸 Déposez vos photos ici</h2>
+                <p>Jusqu'à 8 photos (comme Vinted)</p>
+                <input type="file" id="fileInput" name="images" accept="image/*" multiple required>
             </div>
             
-            <img id="preview" alt="Aperçu">
+            <div id="previewContainer" style="display: none; margin: 20px 0;">
+                <h3 style="margin-bottom: 10px;">Photos sélectionnées :</h3>
+                <div id="previewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;"></div>
+            </div>
             
             <button type="submit" class="btn" id="submitBtn">🔍 Analyser mon produit</button>
         </form>
@@ -313,12 +316,13 @@ HTML_TEMPLATE = """
     <script>
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
-        const preview = document.getElementById('preview');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewGrid = document.getElementById('previewGrid');
         const form = document.getElementById('uploadForm');
         const loading = document.getElementById('loading');
         const editForm = document.getElementById('editForm');
         const result = document.getElementById('result');
-        let currentImageFile = null;
+        let selectedFiles = [];
 
         dropZone.onclick = () => fileInput.click();
         dropZone.ondragover = (e) => {
@@ -330,16 +334,30 @@ HTML_TEMPLATE = """
             e.preventDefault();
             dropZone.classList.remove('dragover');
             fileInput.files = e.dataTransfer.files;
-            showPreview();
+            showPreviews();
         };
 
-        fileInput.onchange = showPreview;
-        function showPreview() {
-            const file = fileInput.files[0];
-            if (file) {
-                currentImageFile = file;
-                preview.src = URL.createObjectURL(file);
-                preview.style.display = 'block';
+        fileInput.onchange = showPreviews;
+        
+        function showPreviews() {
+            const files = Array.from(fileInput.files).slice(0, 8); // Max 8 photos
+            selectedFiles = files;
+            
+            if (files.length > 0) {
+                previewGrid.innerHTML = '';
+                previewContainer.style.display = 'block';
+                
+                files.forEach((file, index) => {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.style.width = '100%';
+                    img.style.height = '120px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '10px';
+                    img.style.border = index === 0 ? '3px solid #667eea' : '2px solid #ddd';
+                    img.title = index === 0 ? 'Photo principale' : `Photo ${index + 1}`;
+                    previewGrid.appendChild(img);
+                });
             }
         }
 
