@@ -278,4 +278,97 @@ class ImageAnalyzer:
         elif 0.65 <= ratio <= 1.5:
             # Carré
             sport_colors = ['rouge', 'bleu', 'vert', 'jaune', 'orange']
-            if any(c in sport_colors for c in col
+            if any(c in sport_colors for c in colors):
+                return "maillot"
+            return "t-shirt"
+        
+        else:
+            # Vertical
+            return "pull"
+    
+    def _evaluate_condition_smart(self, img):
+        """Évalue l'état par netteté + luminosité"""
+        try:
+            gray = img.convert('L')
+            gray_small = gray.resize((300, 300))
+            pixels = list(gray_small.getdata())
+            
+            # Variance = netteté
+            mean = sum(pixels) / len(pixels)
+            variance = sum((p - mean) ** 2 for p in pixels) / len(pixels)
+            
+            # Luminosité moyenne
+            brightness = mean
+            
+            # Scoring
+            if variance > 3500 and brightness > 80:
+                return "Très bon"
+            elif variance > 2500:
+                return "Bon"
+            else:
+                return "Bon"
+                
+        except:
+            return "Bon"
+    
+    def _calculate_confidence(self, marque, has_logo):
+        """Calcule le niveau de confiance"""
+        confidence = 50
+        
+        if marque not in ['À préciser', 'À préciser (logo détecté)']:
+            confidence += 40
+        
+        if has_logo:
+            confidence += 10
+        
+        return min(confidence, 100)
+    
+    def _smart_merge(self, analyses):
+        """Fusion INTELLIGENTE multi-photos"""
+        
+        # Vote type
+        types = [a['type'] for a in analyses]
+        type_counter = Counter(types)
+        best_type = type_counter.most_common(1)[0][0]
+        
+        # Meilleure marque (celle avec meilleur confidence)
+        marques_with_conf = [(a['marque'], a.get('confidence', 0)) for a in analyses]
+        best_marque = max(marques_with_conf, key=lambda x: x[1])[0]
+        
+        # Couleurs fusionnées
+        all_colors = []
+        for a in analyses:
+            all_colors.extend(a.get('colors_found', []))
+        color_counter = Counter(all_colors)
+        best_color = color_counter.most_common(1)[0][0] if color_counter else "multicolore"
+        
+        # Meilleur état
+        etats = [a['etat'] for a in analyses]
+        etat_priority = {'Neuf': 4, 'Très bon': 3, 'Bon': 2, 'Satisfaisant': 1}
+        best_etat = max(etats, key=lambda x: etat_priority.get(x, 0))
+        
+        # Vérifier si logo détecté sur au moins une photo
+        has_any_logo = any(a.get('has_logo', False) for a in analyses)
+        
+        print(f"   🧠 Fusion: Type={best_type} ({type_counter[best_type]}/{len(analyses)}), Marque={best_marque}")
+        
+        return {
+            "type": best_type,
+            "marque": best_marque,
+            "couleur": best_color,
+            "etat": best_etat,
+            "taille": "À préciser",
+            "matiere": "À préciser",
+            "details": f"{best_type.capitalize()} {best_color} - Analysé sur {len(analyses)} photos"
+        }
+    
+    def _default_result(self):
+        return {
+            "type": "vêtement",
+            "marque": "À préciser",
+            "couleur": "à préciser",
+            "etat": "Bon",
+            "taille": "À préciser",
+            "matiere": "À préciser",
+            "details": "Article à détailler"
+        }
