@@ -1,5 +1,5 @@
 """
-Bot Vinted - Multi-photos qui marche
+Bot Vinted - Multi-photos
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -71,11 +71,14 @@ HTML_TEMPLATE = """
             background: #f0f1ff;
         }
         input[type="file"] { display: none; }
+        #previewContainer {
+            margin: 20px 0;
+        }
         .preview-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 15px;
-            margin: 20px 0;
+            margin-top: 15px;
         }
         .preview-item {
             position: relative;
@@ -115,9 +118,10 @@ HTML_TEMPLATE = """
             margin-top: 20px;
             width: 100%;
             font-weight: bold;
+            transition: transform 0.2s;
         }
         .btn:hover { transform: scale(1.05); }
-        .btn:disabled { background: #ccc; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
         .loading {
             display: none;
             text-align: center;
@@ -193,7 +197,7 @@ HTML_TEMPLATE = """
             </div>
             
             <div id="previewContainer" style="display:none;">
-                <h3 style="margin:20px 0 10px 0;">📷 Photos sélectionnées :</h3>
+                <h3 style="margin-bottom:10px;">📷 Photos sélectionnées :</h3>
                 <div class="preview-grid" id="previewGrid"></div>
             </div>
             
@@ -269,7 +273,7 @@ HTML_TEMPLATE = """
                 <p id="descPreview" style="margin-top:10px;font-style:italic;"></p>
             </div>
             
-            <button type="button" class="btn" onclick="generateFinal()">✨ Générer</button>
+            <button type="button" class="btn" onclick="generateFinal()">✨ Générer l'annonce</button>
         </div>
         
         <div class="result" id="result">
@@ -292,7 +296,7 @@ HTML_TEMPLATE = """
                 <button class="copy-btn" onclick="copy('description')">Copier</button>
             </div>
             
-            <button class="btn" onclick="location.reload()">🔄 Nouvelle</button>
+            <button class="btn" onclick="location.reload()">🔄 Nouvelle annonce</button>
         </div>
     </div>
 
@@ -306,37 +310,57 @@ HTML_TEMPLATE = """
         dropZone.onclick = () => fileInput.click();
 
         fileInput.onchange = () => {
-            const files = Array.from(fileInput.files).slice(0, 8);
-            if (files.length === 0) return;
+            const files = fileInput.files;
+            if (files.length > 0) {
+                showPreviews(files);
+            }
+        };
+        
+        function showPreviews(files) {
+            const fileArray = Array.from(files).slice(0, 8);
             
-            previewGrid.innerHTML = '';
             previewContainer.style.display = 'block';
+            previewGrid.innerHTML = '';
             
-            files.forEach((file, i) => {
+            fileArray.forEach((file, index) => {
                 const div = document.createElement('div');
-                div.className = 'preview-item' + (i === 0 ? ' main' : '');
+                div.className = 'preview-item' + (index === 0 ? ' main' : '');
+                
                 const img = document.createElement('img');
                 img.src = URL.createObjectURL(file);
+                img.alt = 'Photo ' + (index + 1);
+                
                 const label = document.createElement('div');
                 label.className = 'preview-label';
-                label.textContent = i === 0 ? 'PRINCIPALE' : `Photo ${i + 1}`;
+                label.textContent = index === 0 ? 'PRINCIPALE' : 'Photo ' + (index + 1);
+                
                 div.appendChild(img);
                 div.appendChild(label);
                 previewGrid.appendChild(div);
             });
-        };
+        }
 
         form.onsubmit = async (e) => {
             e.preventDefault();
+            
             const formData = new FormData();
-            Array.from(fileInput.files).forEach(f => formData.append('images', f));
+            const files = fileInput.files;
+            
+            for (let i = 0; i < files.length; i++) {
+                formData.append('images', files[i]);
+            }
             
             document.getElementById('loading').style.display = 'block';
             document.getElementById('editForm').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
             document.getElementById('submitBtn').disabled = true;
 
             try {
-                const res = await fetch('/analyze', {method: 'POST', body: formData});
+                const res = await fetch('/analyze', {
+                    method: 'POST', 
+                    body: formData
+                });
+                
                 const data = await res.json();
 
                 if (data.success) {
@@ -345,11 +369,13 @@ HTML_TEMPLATE = """
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({product_info: data.produit})
                     });
+                    
                     const priceData = await priceRes.json();
                     
                     if (priceData.success) {
                         document.getElementById('suggestedPrice').textContent = 
-                            `${priceData.prix.prix_recommande}€ (${priceData.prix.prix_min}€ - ${priceData.prix.prix_max}€)`;
+                            priceData.prix.prix_recommande + '€ (Fourchette: ' + 
+                            priceData.prix.prix_min + '€ - ' + priceData.prix.prix_max + '€)';
                     }
                     
                     document.getElementById('productType').value = data.produit.type;
@@ -364,7 +390,7 @@ HTML_TEMPLATE = """
                     alert('Erreur: ' + data.error);
                 }
             } catch (error) {
-                alert('Erreur: ' + error);
+                alert('Erreur de connexion: ' + error);
             } finally {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('submitBtn').disabled = false;
@@ -378,10 +404,14 @@ HTML_TEMPLATE = """
             
             const m = marque ? marque + ' - ' : '';
             const templates = {
-                'maillot': `${m}Maillot ${couleur} authentique ! Excellent état. Pour les vrais fans ! ⚽ Envoi rapide 📦`,
-                'pantalon': `${m}Pantalon ${couleur}. Très bon état. Coupe parfaite ! 👖 Envoi rapide 📦`,
-                't-shirt': `${m}T-shirt ${couleur}. Très bon état ! 👕 Envoi rapide 📦`
+                'maillot': m + 'Maillot ' + couleur + ' authentique ! Excellent état. Pour les vrais fans ! ⚽ Envoi rapide 📦',
+                'pantalon': m + 'Pantalon ' + couleur + '. Très bon état. Coupe parfaite ! 👖 Envoi rapide 📦',
+                't-shirt': m + 'T-shirt ' + couleur + '. Très bon état ! 👕 Envoi rapide 📦',
+                'chaussures': m + 'Chaussures ' + couleur + '. Très bon état ! 👟 Envoi rapide 📦',
+                'basket': m + 'Basket ' + couleur + ' stylée ! 👟 Envoi rapide 📦',
+                'pull': m + 'Pull ' + couleur + ' tout doux ! 🧶 Envoi rapide 📦'
             };
+            
             document.getElementById('descPreview').textContent = templates[type] || templates['t-shirt'];
         }
 
@@ -404,12 +434,14 @@ HTML_TEMPLATE = """
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({product_info: productInfo})
                 });
+                
                 const data = await res.json();
                 
                 if (data.success) {
                     document.getElementById('titre').textContent = data.annonce.titre;
                     document.getElementById('prix').textContent = 
-                        `${data.annonce.prix}€ (${data.annonce.prix_min}€ - ${data.annonce.prix_max}€)`;
+                        data.annonce.prix + '€ (Fourchette: ' + 
+                        data.annonce.prix_min + '€ - ' + data.annonce.prix_max + '€)';
                     document.getElementById('description').textContent = data.annonce.description;
                     
                     document.getElementById('editForm').style.display = 'none';
@@ -423,7 +455,8 @@ HTML_TEMPLATE = """
         }
 
         function copy(id) {
-            navigator.clipboard.writeText(document.getElementById(id).textContent);
+            const text = document.getElementById(id).textContent;
+            navigator.clipboard.writeText(text);
             alert('✅ Copié !');
         }
     </script>
@@ -439,7 +472,8 @@ def index():
 def analyze():
     try:
         files = request.files.getlist('images')
-        if not files:
+        
+        if not files or len(files) == 0:
             return jsonify({'success': False, 'error': 'Aucune image'})
         
         print(f"🔥 {len(files)} photo(s) reçue(s)")
@@ -459,9 +493,12 @@ def analyze():
             except:
                 pass
         
-        return jsonify({'success': True, 'produit': product_info})
+        return jsonify({'success': True, 'produit': product_info, 'nb_photos': len(files)})
+        
     except Exception as e:
         print(f"❌ ERREUR: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get_price', methods=['POST'])
