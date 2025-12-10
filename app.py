@@ -1,4 +1,4 @@
-"""
+,"""
 Bot Vinted - Multi-photos
 """
 
@@ -306,23 +306,27 @@ HTML_TEMPLATE = """
         const previewContainer = document.getElementById('previewContainer');
         const previewGrid = document.getElementById('previewGrid');
         const form = document.getElementById('uploadForm');
+        
+        let selectedFiles = []; // STOCKER LES FICHIERS ICI
 
         dropZone.onclick = () => fileInput.click();
 
-        fileInput.onchange = () => {
-            const files = fileInput.files;
-            if (files.length > 0) {
-                showPreviews(files);
-            }
-        };
+        // QUAND ON SÉLECTIONNE DES FICHIERS
+        fileInput.addEventListener('change', function(e) {
+            selectedFiles = Array.from(this.files).slice(0, 8); // MAX 8
+            console.log('Fichiers sélectionnés:', selectedFiles.length);
+            showPreviews();
+        });
         
-        function showPreviews(files) {
-            const fileArray = Array.from(files).slice(0, 8);
+        function showPreviews() {
+            if (selectedFiles.length === 0) return;
             
             previewContainer.style.display = 'block';
             previewGrid.innerHTML = '';
             
-            fileArray.forEach((file, index) => {
+            console.log('Affichage de', selectedFiles.length, 'photos');
+            
+            selectedFiles.forEach((file, index) => {
                 const div = document.createElement('div');
                 div.className = 'preview-item' + (index === 0 ? ' main' : '');
                 
@@ -343,12 +347,19 @@ HTML_TEMPLATE = """
         form.onsubmit = async (e) => {
             e.preventDefault();
             
-            const formData = new FormData();
-            const files = fileInput.files;
-            
-            for (let i = 0; i < files.length; i++) {
-                formData.append('images', files[i]);
+            if (selectedFiles.length === 0) {
+                alert('Sélectionnez au moins une photo !');
+                return;
             }
+            
+            // CRÉER FORMDATA AVEC TOUS LES FICHIERS
+            const formData = new FormData();
+            selectedFiles.forEach((file, index) => {
+                formData.append('images', file);
+                console.log('Ajout fichier', index + 1, ':', file.name);
+            });
+            
+            console.log('Envoi de', selectedFiles.length, 'fichiers...');
             
             document.getElementById('loading').style.display = 'block';
             document.getElementById('editForm').style.display = 'none';
@@ -362,6 +373,7 @@ HTML_TEMPLATE = """
                 });
                 
                 const data = await res.json();
+                console.log('Réponse serveur:', data);
 
                 if (data.success) {
                     const priceRes = await fetch('/get_price', {
@@ -390,6 +402,7 @@ HTML_TEMPLATE = """
                     alert('Erreur: ' + data.error);
                 }
             } catch (error) {
+                console.error('Erreur:', error);
                 alert('Erreur de connexion: ' + error);
             } finally {
                 document.getElementById('loading').style.display = 'none';
@@ -523,3 +536,4 @@ def generate():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
