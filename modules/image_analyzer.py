@@ -261,9 +261,18 @@ class ImageAnalyzer:
             return False
     
     def _detect_type_contextual(self, ratio, colors, marque):
-        """Détecte le type avec CONTEXTE (marque + couleurs)"""
+        """Détecte le type avec CONTEXTE"""
         
-        # Si marque d'équipe détectée → probablement maillot
+        # Détecter sac à main (ratio souvent carré ou horizontal, couleurs variées)
+        if 0.8 <= ratio <= 1.3:
+            # Si couleurs cuir/luxe (marron, beige, noir, or) et pas de couleurs sport
+            leather_colors = ['marron', 'beige', 'noir', 'or', 'argent']
+            if any(c in leather_colors for c in colors):
+                # Pas de rouge/bleu vif = probablement pas un maillot
+                if not any(c in ['rouge', 'bleu', 'vert', 'jaune'] for c in colors):
+                    return "sac"
+        
+        # Si marque équipe détectée → maillot
         team_brands = ['real madrid', 'barcelona', 'psg', 'bayern', 'marseille', 'france']
         if any(team in marque.lower() for team in team_brands):
             return "maillot"
@@ -372,3 +381,4 @@ class ImageAnalyzer:
             "matiere": "À préciser",
             "details": "Article à détailler"
         }
+
