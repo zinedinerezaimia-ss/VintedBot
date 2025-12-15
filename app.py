@@ -228,10 +228,14 @@ HTML_TEMPLATE = """
                     <option value="jean">Jean</option>
                     <option value="short">Short</option>
                     <option value="robe">Robe</option>
+                    <option value="jupe">Jupe</option>
                     <option value="veste">Veste</option>
+                    <option value="manteau">Manteau</option>
                     <option value="chaussures">Chaussures</option>
                     <option value="basket">Basket</option>
                     <option value="bottine">Bottine</option>
+                    <option value="sac">Sac à main</option>
+                    <option value="accessoire">Accessoire</option>
                 </select>
             </div>
             
@@ -242,7 +246,26 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label>Couleur *</label>
-                <input type="text" id="color" required oninput="updateDesc()">
+                <select id="color" required onchange="updateDesc()">
+                    <option value="">-- Sélectionnez --</option>
+                    <option value="noir">Noir</option>
+                    <option value="blanc">Blanc</option>
+                    <option value="gris">Gris</option>
+                    <option value="rouge">Rouge</option>
+                    <option value="bleu">Bleu</option>
+                    <option value="bleu marine">Bleu marine</option>
+                    <option value="vert">Vert</option>
+                    <option value="jaune">Jaune</option>
+                    <option value="orange">Orange</option>
+                    <option value="rose">Rose</option>
+                    <option value="violet">Violet</option>
+                    <option value="marron">Marron</option>
+                    <option value="beige">Beige</option>
+                    <option value="or">Or</option>
+                    <option value="argent">Argent</option>
+                    <option value="multicolore">Multicolore</option>
+                    <option value="autre">Autre</option>
+                </select>
             </div>
             
             <div class="form-group">
@@ -536,5 +559,6 @@ def generate():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
