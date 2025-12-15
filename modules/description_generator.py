@@ -58,7 +58,14 @@ class DescriptionGenerator:
                 
                 "{marque_txt}Super sweat {couleur} ! {etat_txt}. Matière épaisse et chaude. Coupe {coupe}. Taille {taille_txt}. 👔 Look streetwear ! Très confortable. Expédition soignée 📦⭐"
             ]
-        }
+            
+            "sac": [
+                "{marque_txt}Sac à main {couleur} élégant ! {etat_txt}, porté {freq}. Matière {matiere} {qualite}. Plusieurs compartiments pratiques, fermeture {fermeture}. Dimensions parfaites pour {usage} ! 👜 Anses/bandoulière en {materiel_anse}. Intérieur propre et spacieux. Style {style} intemporel. S'associe avec toutes les tenues ! Envoi rapide et protégé 📦",
+                
+                "{marque_txt}Joli sac {couleur} polyvalent ! {etat_txt}. {matiere} résistant et {qualite}. Fermeture {fermeture}, poches {poches}. 👜 Parfait pour {usage} ! Design {style}, très pratique. Bandoulière ajustable. Envoi soigné en colis renforcé 📦✨"
+            ],
+
+       }
         
         # Variables enrichies
         self.variables = {
@@ -78,6 +85,9 @@ class DescriptionGenerator:
             "semelle": ["gomme", "caoutchouc", "EVA", "composite"],
             "interieur": ["textile", "cuir", "synthétique respirant"],
             "interieur_etat": ["propre", "impeccable", "nickel"]
+            "fermeture": ["zippée", "magnétique", "à bouton-pression", "à rabat"],
+            "materiel_anse": ["cuir", "synthétique", "chaîne", "textile"],
+            "usage": ["quotidien", "sorties", "travail", "toutes occasions"],
         }
         
         # États détaillés
@@ -186,3 +196,4 @@ class DescriptionGenerator:
             "prix_min": price_info['prix_min'],
             "prix_max": price_info['prix_max']
         }
+
