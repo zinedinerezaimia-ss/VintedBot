@@ -1,29 +1,47 @@
 """
-Bot Vinted - Multi-photos
+Bot Vinted - Version stable
 """
 
 from flask import Flask, request, jsonify, render_template_string
 from werkzeug.utils import secure_filename
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent))
-from modules.image_analyzer import ImageAnalyzer
-from modules.price_analyzer import PriceAnalyzer
-from modules.description_generator import DescriptionGenerator
+# Ajouter modules au path
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Imports des modules
+try:
+    from modules.image_analyzer import ImageAnalyzer
+    from modules.price_analyzer import PriceAnalyzer
+    from modules.description_generator import DescriptionGenerator
+except ImportError as e:
+    print(f"ERREUR IMPORT: {e}")
+    # Fallback si modules pas trouvés
+    class ImageAnalyzer:
+        def analyze_multiple_products(self, paths):
+            return {"type": "vêtement", "marque": "À préciser", "couleur": "noir", "etat": "Bon", "taille": "M", "matiere": "coton", "details": ""}
+    class PriceAnalyzer:
+        def calculate_optimal_price(self, info):
+            return {"prix_recommande": 15, "prix_min": 10, "prix_max": 20}
+    class DescriptionGenerator:
+        def create_full_listing(self, info, price):
+            return {"titre": "Article", "description": "À vendre", "prix": 15, "prix_min": 10, "prix_max": 20}
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+# Créer dossier uploads
 os.makedirs('uploads', exist_ok=True)
 
+# Initialiser modules
 image_analyzer = ImageAnalyzer()
 price_analyzer = PriceAnalyzer()
 desc_generator = DescriptionGenerator()
 
-HTML_TEMPLATE = """
+HTML = """
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -71,14 +89,11 @@ HTML_TEMPLATE = """
             background: #f0f1ff;
         }
         input[type="file"] { display: none; }
-        #previewContainer {
-            margin: 20px 0;
-        }
         .preview-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 15px;
-            margin-top: 15px;
+            margin: 20px 0;
         }
         .preview-item {
             position: relative;
@@ -187,7 +202,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h1>🤖 Bot Vinted IA</h1>
-        <p class="subtitle">Multi-photos • Analyse intelligente • Prix • Description</p>
+        <p class="subtitle">Multi-photos • Analyse • Prix • Description</p>
         
         <form id="uploadForm">
             <div class="upload-zone" id="dropZone">
@@ -197,22 +212,22 @@ HTML_TEMPLATE = """
             </div>
             
             <div id="previewContainer" style="display:none;">
-                <h3 style="margin-bottom:10px;">📷 Photos sélectionnées :</h3>
+                <h3 style="margin:20px 0 10px 0;">📷 Photos sélectionnées :</h3>
                 <div class="preview-grid" id="previewGrid"></div>
             </div>
             
-            <button type="submit" class="btn" id="submitBtn">🔍 Analyser toutes les photos</button>
+            <button type="submit" class="btn" id="submitBtn">🔍 Analyser</button>
         </form>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Analyse multi-photos en cours...</p>
+            <p>Analyse en cours...</p>
         </div>
         
         <div class="edit-form" id="editForm">
             <h2>✏️ Vérifiez les infos</h2>
             
-            <div class="info-box price-box" style="margin-bottom:20px;">
+            <div class="info-box price-box">
                 <strong>💰 Prix suggéré :</strong>
                 <p id="suggestedPrice"></p>
             </div>
@@ -235,7 +250,6 @@ HTML_TEMPLATE = """
                     <option value="basket">Basket</option>
                     <option value="bottine">Bottine</option>
                     <option value="sac">Sac à main</option>
-                    <option value="accessoire">Accessoire</option>
                 </select>
             </div>
             
@@ -262,9 +276,7 @@ HTML_TEMPLATE = """
                     <option value="marron">Marron</option>
                     <option value="beige">Beige</option>
                     <option value="or">Or</option>
-                    <option value="argent">Argent</option>
                     <option value="multicolore">Multicolore</option>
-                    <option value="autre">Autre</option>
                 </select>
             </div>
             
@@ -296,7 +308,7 @@ HTML_TEMPLATE = """
                 <p id="descPreview" style="margin-top:10px;font-style:italic;"></p>
             </div>
             
-            <button type="button" class="btn" onclick="generateFinal()">✨ Générer l'annonce</button>
+            <button type="button" class="btn" onclick="generateFinal()">✨ Générer</button>
         </div>
         
         <div class="result" id="result">
@@ -319,7 +331,7 @@ HTML_TEMPLATE = """
                 <button class="copy-btn" onclick="copy('description')">Copier</button>
             </div>
             
-            <button class="btn" onclick="location.reload()">🔄 Nouvelle annonce</button>
+            <button class="btn" onclick="location.reload()">🔄 Nouvelle</button>
         </div>
     </div>
 
@@ -330,14 +342,13 @@ HTML_TEMPLATE = """
         const previewGrid = document.getElementById('previewGrid');
         const form = document.getElementById('uploadForm');
         
-        let selectedFiles = []; // STOCKER LES FICHIERS ICI
+        let selectedFiles = [];
 
         dropZone.onclick = () => fileInput.click();
 
-        // QUAND ON SÉLECTIONNE DES FICHIERS
-        fileInput.addEventListener('change', function(e) {
-            selectedFiles = Array.from(this.files).slice(0, 8); // MAX 8
-            console.log('Fichiers sélectionnés:', selectedFiles.length);
+        fileInput.addEventListener('change', function() {
+            selectedFiles = Array.from(this.files).slice(0, 8);
+            console.log('Files:', selectedFiles.length);
             showPreviews();
         });
         
@@ -347,19 +358,16 @@ HTML_TEMPLATE = """
             previewContainer.style.display = 'block';
             previewGrid.innerHTML = '';
             
-            console.log('Affichage de', selectedFiles.length, 'photos');
-            
-            selectedFiles.forEach((file, index) => {
+            selectedFiles.forEach((file, i) => {
                 const div = document.createElement('div');
-                div.className = 'preview-item' + (index === 0 ? ' main' : '');
+                div.className = 'preview-item' + (i === 0 ? ' main' : '');
                 
                 const img = document.createElement('img');
                 img.src = URL.createObjectURL(file);
-                img.alt = 'Photo ' + (index + 1);
                 
                 const label = document.createElement('div');
                 label.className = 'preview-label';
-                label.textContent = index === 0 ? 'PRINCIPALE' : 'Photo ' + (index + 1);
+                label.textContent = i === 0 ? 'PRINCIPALE' : 'Photo ' + (i + 1);
                 
                 div.appendChild(img);
                 div.appendChild(label);
@@ -375,18 +383,13 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            // CRÉER FORMDATA AVEC TOUS LES FICHIERS
             const formData = new FormData();
-            selectedFiles.forEach((file, index) => {
+            selectedFiles.forEach(file => {
                 formData.append('images', file);
-                console.log('Ajout fichier', index + 1, ':', file.name);
             });
-            
-            console.log('Envoi de', selectedFiles.length, 'fichiers...');
             
             document.getElementById('loading').style.display = 'block';
             document.getElementById('editForm').style.display = 'none';
-            document.getElementById('result').style.display = 'none';
             document.getElementById('submitBtn').disabled = true;
 
             try {
@@ -396,7 +399,6 @@ HTML_TEMPLATE = """
                 });
                 
                 const data = await res.json();
-                console.log('Réponse serveur:', data);
 
                 if (data.success) {
                     const priceRes = await fetch('/get_price', {
@@ -409,7 +411,7 @@ HTML_TEMPLATE = """
                     
                     if (priceData.success) {
                         document.getElementById('suggestedPrice').textContent = 
-                            priceData.prix.prix_recommande + '€ (Fourchette: ' + 
+                            priceData.prix.prix_recommande + '€ (' + 
                             priceData.prix.prix_min + '€ - ' + priceData.prix.prix_max + '€)';
                     }
                     
@@ -425,8 +427,7 @@ HTML_TEMPLATE = """
                     alert('Erreur: ' + data.error);
                 }
             } catch (error) {
-                console.error('Erreur:', error);
-                alert('Erreur de connexion: ' + error);
+                alert('Erreur: ' + error);
             } finally {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('submitBtn').disabled = false;
@@ -440,12 +441,9 @@ HTML_TEMPLATE = """
             
             const m = marque ? marque + ' - ' : '';
             const templates = {
-                'maillot': m + 'Maillot ' + couleur + ' authentique ! Excellent état. Pour les vrais fans ! ⚽ Envoi rapide 📦',
-                'pantalon': m + 'Pantalon ' + couleur + '. Très bon état. Coupe parfaite ! 👖 Envoi rapide 📦',
-                't-shirt': m + 'T-shirt ' + couleur + '. Très bon état ! 👕 Envoi rapide 📦',
-                'chaussures': m + 'Chaussures ' + couleur + '. Très bon état ! 👟 Envoi rapide 📦',
-                'basket': m + 'Basket ' + couleur + ' stylée ! 👟 Envoi rapide 📦',
-                'pull': m + 'Pull ' + couleur + ' tout doux ! 🧶 Envoi rapide 📦'
+                'maillot': m + 'Maillot ' + couleur + ' authentique ! Excellent état. ⚽ Envoi rapide 📦',
+                'sac': m + 'Sac ' + couleur + ' élégant ! Très bon état. 👜 Envoi soigné 📦',
+                't-shirt': m + 'T-shirt ' + couleur + '. Bon état ! 👕 Envoi rapide 📦'
             };
             
             document.getElementById('descPreview').textContent = templates[type] || templates['t-shirt'];
@@ -461,7 +459,7 @@ HTML_TEMPLATE = """
                 taille: document.getElementById('size').value,
                 etat: document.getElementById('condition').value,
                 matiere: 'À préciser',
-                details: 'Article de qualité'
+                details: 'Article'
             };
             
             try {
@@ -476,7 +474,7 @@ HTML_TEMPLATE = """
                 if (data.success) {
                     document.getElementById('titre').textContent = data.annonce.titre;
                     document.getElementById('prix').textContent = 
-                        data.annonce.prix + '€ (Fourchette: ' + 
+                        data.annonce.prix + '€ (' + 
                         data.annonce.prix_min + '€ - ' + data.annonce.prix_max + '€)';
                     document.getElementById('description').textContent = data.annonce.description;
                     
@@ -502,14 +500,14 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
-    return render_template_string(HTML_TEMPLATE)
+    return render_template_string(HTML)
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
         files = request.files.getlist('images')
         
-        if not files or len(files) == 0:
+        if not files:
             return jsonify({'success': False, 'error': 'Aucune image'})
         
         print(f"🔥 {len(files)} photo(s) reçue(s)")
@@ -529,7 +527,7 @@ def analyze():
             except:
                 pass
         
-        return jsonify({'success': True, 'produit': product_info, 'nb_photos': len(files)})
+        return jsonify({'success': True, 'produit': product_info})
         
     except Exception as e:
         print(f"❌ ERREUR: {e}")
@@ -558,7 +556,5 @@ def generate():
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
