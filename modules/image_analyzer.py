@@ -96,75 +96,141 @@ class ImageAnalyzer:
             return ['noir']
     
     def _classify_color(self, r, g, b):
-        """Classifie un pixel"""
-        if r < 75 and g < 75 and b < 75:
+        """Classifie un pixel AVEC PRÉCISION"""
+        
+        # NOIR (très sombre)
+        if r < 60 and g < 60 and b < 60:
             return 'noir'
-        if r > 195 and g > 195 and b > 195:
+        
+        # BLANC (très clair)
+        if r > 210 and g > 210 and b > 210:
             return 'blanc'
-        if abs(r - g) < 45 and abs(g - b) < 45:
-            return 'gris'
-        if r > g + 65 and r > b + 65:
+        
+        # GRIS (nuances proches mais pas noir/blanc)
+        if abs(r - g) < 40 and abs(g - b) < 40:
+            if 60 <= r <= 210:
+                return 'gris'
+        
+        # ROUGE (rouge doit être DOMINANT)
+        if r > g + 80 and r > b + 80:
             return 'rouge'
-        if b > r + 55 and b > g + 35:
+        
+        # BLEU (bleu doit être DOMINANT)
+        if b > r + 70 and b > g + 50:
             return 'bleu'
-        if g > r + 55 and g > b + 55:
+        
+        # VERT
+        if g > r + 70 and g > b + 70:
             return 'vert'
-        if r > 175 and g > 175 and b < 125:
+        
+        # JAUNE
+        if r > 190 and g > 190 and b < 110:
             return 'jaune'
-        if r > 175 and 85 < g < 175 and b < 95:
+        
+        # ORANGE
+        if r > 190 and 90 < g < 180 and b < 80:
             return 'orange'
-        if r > 145 and b > 115 and g < 145:
+        
+        # ROSE
+        if r > 160 and b > 130 and g < 140:
             return 'rose'
-        if r > g + 25 and g > b + 15 and 75 < r < 175:
+        
+        # VIOLET
+        if r > 110 and b > 110 and g < 90:
+            return 'violet'
+        
+        # MARRON (rouge-brun)
+        if r > g + 30 and g > b + 20 and 70 < r < 160:
             return 'marron'
-        if 145 < r < 225 and 125 < g < 205 and 95 < b < 175:
+        
+        # BEIGE (tons chair/crème)
+        if 160 < r < 235 and 140 < g < 215 and 100 < b < 180:
             return 'beige'
-        if r > 180 and 140 < g < 200 and b < 100:
+        
+        # OR (jaune-doré)
+        if r > 195 and 150 < g < 210 and b < 90:
             return 'or'
+        
+        # Par défaut
         return 'multicolore'
     
     def _detect_brand(self, colors):
-        """Détecte la marque"""
+        """Détecte la marque STRICTEMENT"""
         try:
             color_set = set(colors)
             
-            for brand, pattern in self.brand_patterns.items():
-                brand_colors = set(pattern['colors'])
-                if color_set.intersection(brand_colors):
-                    if brand == 'barcelona' and 'bleu' in colors and 'rouge' in colors:
-                        return 'Barcelona'
-                    elif brand == 'psg' and 'bleu' in colors and 'rouge' in colors:
-                        return 'Psg'
-                    elif brand == 'bayern' and 'rouge' in colors:
-                        return 'Bayern'
-                    elif brand == 'real madrid' and 'blanc' in colors:
-                        return 'Real Madrid'
+            # RÈGLE STRICTE : Ne détecter une marque QUE si les couleurs matchent EXACTEMENT
             
+            # Barcelona = BLEU + ROUGE ensemble (pas juste bleu ou rouge seul)
+            if 'bleu' in colors and 'rouge' in colors:
+                # Vérifier que ce sont les 2 couleurs dominantes
+                if colors[0] in ['bleu', 'rouge'] and colors[1] in ['bleu', 'rouge']:
+                    return 'Barcelona'
+            
+            # PSG = BLEU dominant + ROUGE (mais PSG a plus de bleu)
+            if 'bleu' in colors and colors[0] == 'bleu':
+                if 'rouge' in colors:
+                    return 'Psg'
+            
+            # Bayern = ROUGE dominant (et pas d'autres couleurs vives)
+            if 'rouge' in colors and colors[0] == 'rouge':
+                if 'bleu' not in colors:  # Pas de bleu sinon = Barça
+                    return 'Bayern'
+            
+            # Real Madrid = BLANC dominant + OR/JAUNE
+            if 'blanc' in colors and colors[0] == 'blanc':
+                if 'or' in colors or 'jaune' in colors:
+                    return 'Real Madrid'
+            
+            # France = BLEU dominant seul (sans rouge ni jaune vif)
+            if 'bleu' in colors and colors[0] == 'bleu':
+                if 'rouge' not in colors:  # Pas de rouge sinon = Barça/PSG
+                    return 'France'
+            
+            # Marseille = BLANC + BLEU
+            if 'blanc' in colors and 'bleu' in colors:
+                return 'Marseille'
+            
+            # AUCUNE MARQUE DÉTECTÉE = Ne pas inventer !
             return "À préciser"
+            
         except:
             return "À préciser"
     
     def _detect_type(self, ratio, colors, marque):
-        """Détecte le type"""
-        team_brands = ['Real Madrid', 'Barcelona', 'Psg', 'Bayern', 'France', 'Marseille']
+        """Détecte le type - Version RÉALISTE"""
         
+        # PRIORITÉ 1 : Maillots d'équipes (SI marque équipe détectée avec certitude)
+        team_brands = ['Real Madrid', 'Barcelona', 'Psg', 'Bayern', 'France', 'Marseille']
         if marque in team_brands:
             return "maillot"
         
-        # Sac
-        if 0.8 <= ratio <= 1.3:
-            leather_colors = ['marron', 'beige', 'noir', 'or']
-            if any(c in leather_colors for c in colors):
-                return "sac"
+        # PRIORITÉ 2 : Détection STRICTE par RATIO uniquement
+        # (On ne peut PAS différencier sac/t-shirt/maillot juste avec couleurs)
         
-        if ratio < 0.65:
-            if any(c in ['noir', 'marron', 'beige'] for c in colors):
-                return "chaussures"
+        # Très horizontal = Chaussures
+        if ratio < 0.6:
+            return "chaussures"
+        
+        # Horizontal = Pantalon
+        elif 0.6 <= ratio < 0.85:
             return "pantalon"
-        elif 0.65 <= ratio <= 1.5:
-            if any(c in ['rouge', 'bleu', 'vert', 'jaune'] for c in colors):
+        
+        # Carré = Peut être T-SHIRT, MAILLOT ou SAC
+        # IMPOSSIBLE de différencier sans IA avancée !
+        # Par DÉFAUT = t-shirt (le plus courant)
+        elif 0.85 <= ratio <= 1.4:
+            # Si couleurs TRÈS vives (sport typique) = PEUT-ÊTRE maillot
+            sport_colors = ['rouge', 'bleu', 'vert', 'jaune', 'orange']
+            if len([c for c in colors if c in sport_colors]) >= 2:
+                # Au moins 2 couleurs sport vives = probablement maillot
                 return "maillot"
+            
+            # Sinon, on met t-shirt par défaut
+            # L'utilisateur pourra corriger en "sac" ou "maillot" manuellement
             return "t-shirt"
+        
+        # Vertical = Pull
         else:
             return "pull"
     
