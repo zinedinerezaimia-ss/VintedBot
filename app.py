@@ -1,5 +1,5 @@
 """
-Bot Vinted - Version stable
+Bot Vinted Multilingue - Version finale stable
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -11,47 +11,42 @@ from pathlib import Path
 # Ajouter modules au path
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Imports des modules
 try:
     from modules.image_analyzer import ImageAnalyzer
     from modules.price_analyzer import PriceAnalyzer
     from modules.description_generator import DescriptionGenerator
-except ImportError as e:
-    print(f"ERREUR IMPORT: {e}")
-    # Fallback si modules pas trouvés
-    class ImageAnalyzer:
-        def analyze_multiple_products(self, paths):
-            return {"type": "vêtement", "marque": "À préciser", "couleur": "noir", "etat": "Bon", "taille": "M", "matiere": "coton", "details": ""}
-    class PriceAnalyzer:
-        def calculate_optimal_price(self, info):
-            return {"prix_recommande": 15, "prix_min": 10, "prix_max": 20}
-    class DescriptionGenerator:
-        def create_full_listing(self, info, price):
-            return {"titre": "Article", "description": "À vendre", "prix": 15, "prix_min": 10, "prix_max": 20}
+    from modules.translations import get_translation
+except ImportError:
+    print("⚠️ Modules introuvables, utilise fallback basique")
+    ImageAnalyzer = None
+    PriceAnalyzer = None
+    DescriptionGenerator = None
+    def get_translation(lang): return {}
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 
-# Créer dossier uploads
-os.makedirs('uploads', exist_ok=True)
+# Créer le dossier uploads
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialiser modules
-image_analyzer = ImageAnalyzer()
-price_analyzer = PriceAnalyzer()
-desc_generator = DescriptionGenerator()
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
-HTML = """
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot Vinted IA</title>
+    <title>Vinted Bot - Auto-Listing</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
@@ -65,8 +60,8 @@ HTML = """
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         h1 {
-            text-align: center;
             color: #667eea;
+            text-align: center;
             margin-bottom: 10px;
             font-size: 2.5em;
         }
@@ -75,79 +70,129 @@ HTML = """
             color: #666;
             margin-bottom: 30px;
         }
+        .lang-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .lang-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        .lang-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .lang-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
         .upload-zone {
             border: 3px dashed #667eea;
             border-radius: 15px;
-            padding: 60px 20px;
+            padding: 40px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            background: #f8f9ff;
+            margin-bottom: 20px;
         }
         .upload-zone:hover {
+            background: #f8f9ff;
             border-color: #764ba2;
-            background: #f0f1ff;
+        }
+        .upload-zone.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
         }
         input[type="file"] { display: none; }
-        .preview-grid {
+        .preview-container {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 15px;
             margin: 20px 0;
         }
         .preview-item {
             position: relative;
-            aspect-ratio: 1;
             border-radius: 10px;
             overflow: hidden;
-            border: 3px solid #ddd;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         .preview-item img {
             width: 100%;
-            height: 100%;
+            height: 150px;
             object-fit: cover;
         }
-        .preview-item.main {
-            border-color: #667eea;
-            box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
-        }
-        .preview-label {
+        .remove-btn {
             position: absolute;
             top: 5px;
-            left: 5px;
-            background: #667eea;
+            right: 5px;
+            background: #ff4757;
             color: white;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 12px;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
             font-weight: bold;
         }
-        .btn {
+        button {
+            width: 100%;
+            padding: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 40px;
-            border-radius: 50px;
+            border-radius: 10px;
             font-size: 18px;
-            cursor: pointer;
-            margin-top: 20px;
-            width: 100%;
             font-weight: bold;
-            transition: transform 0.2s;
+            cursor: pointer;
+            transition: transform 0.3s;
         }
-        .btn:hover { transform: scale(1.05); }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9ff;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+        .result h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .result-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+        .result-item strong {
+            color: #764ba2;
+        }
         .loading {
             display: none;
             text-align: center;
-            margin: 20px 0;
+            padding: 20px;
         }
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
@@ -155,406 +200,316 @@ HTML = """
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .edit-form, .result {
-            display: none;
-            margin-top: 30px;
-            padding: 30px;
-            background: #f8f9ff;
-            border-radius: 15px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        .info-box {
-            background: white;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-        .price-box {
-            background: #e8fff3;
-            border-left-color: #00b894;
-        }
-        .copy-btn {
-            background: #00b894;
+        .error {
+            background: #ff4757;
             color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🤖 Bot Vinted IA</h1>
-        <p class="subtitle">Multi-photos • Analyse • Prix • Description</p>
+        <h1>🤖 Vinted Bot</h1>
+        <p class="subtitle" id="subtitle">Téléchargez vos photos, le bot s'occupe du reste !</p>
         
-        <form id="uploadForm">
-            <div class="upload-zone" id="dropZone">
-                <h2>📸 Déposez vos photos ici</h2>
-                <p>Jusqu'à 8 photos • Toutes seront analysées</p>
-                <input type="file" id="fileInput" accept="image/*" multiple required>
-            </div>
-            
-            <div id="previewContainer" style="display:none;">
-                <h3 style="margin:20px 0 10px 0;">📷 Photos sélectionnées :</h3>
-                <div class="preview-grid" id="previewGrid"></div>
-            </div>
-            
-            <button type="submit" class="btn" id="submitBtn">🔍 Analyser</button>
-        </form>
-        
+        <div class="lang-selector">
+            <button class="lang-btn active" data-lang="fr" onclick="changeLang('fr')">🇫🇷 Français</button>
+            <button class="lang-btn" data-lang="en" onclick="changeLang('en')">🇬🇧 English</button>
+            <button class="lang-btn" data-lang="es" onclick="changeLang('es')">🇪🇸 Español</button>
+            <button class="lang-btn" data-lang="de" onclick="changeLang('de')">🇩🇪 Deutsch</button>
+        </div>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <p style="font-size: 48px; margin-bottom: 10px;">📸</p>
+            <p style="font-size: 18px; color: #667eea; font-weight: bold;" id="uploadText">
+                Cliquez ou glissez vos photos ici
+            </p>
+            <p style="color: #999; margin-top: 10px;" id="uploadSubtext">
+                Plusieurs photos acceptées (PNG, JPG, JPEG, WEBP)
+            </p>
+        </div>
+
+        <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(this.files)">
+
+        <div class="preview-container" id="previewContainer"></div>
+
+        <button id="analyzeBtn" onclick="analyzeImages()" disabled>
+            <span id="btnText">🚀 Analyser et créer l'annonce</span>
+        </button>
+
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Analyse en cours...</p>
+            <p style="margin-top: 15px; color: #667eea;" id="loadingText">Analyse en cours...</p>
         </div>
-        
-        <div class="edit-form" id="editForm">
-            <h2>✏️ Vérifiez les infos</h2>
-            
-            <div class="info-box price-box">
-                <strong>💰 Prix suggéré :</strong>
-                <p id="suggestedPrice"></p>
-            </div>
-            
-            <div class="form-group">
-                <label>Type *</label>
-                <select id="productType" onchange="updateDesc()">
-                    <option value="t-shirt">T-shirt</option>
-                    <option value="maillot">Maillot</option>
-                    <option value="pull">Pull</option>
-                    <option value="sweat">Sweat</option>
-                    <option value="pantalon">Pantalon</option>
-                    <option value="jean">Jean</option>
-                    <option value="short">Short</option>
-                    <option value="robe">Robe</option>
-                    <option value="jupe">Jupe</option>
-                    <option value="veste">Veste</option>
-                    <option value="manteau">Manteau</option>
-                    <option value="chaussures">Chaussures</option>
-                    <option value="basket">Basket</option>
-                    <option value="bottine">Bottine</option>
-                    <option value="sac">Sac à main</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Marque</label>
-                <input type="text" id="brand" placeholder="Nike, Adidas..." oninput="updateDesc()">
-            </div>
-            
-            <div class="form-group">
-                <label>Couleur *</label>
-                <select id="color" required onchange="updateDesc()">
-                    <option value="">-- Sélectionnez --</option>
-                    <option value="noir">Noir</option>
-                    <option value="blanc">Blanc</option>
-                    <option value="gris">Gris</option>
-                    <option value="rouge">Rouge</option>
-                    <option value="bleu">Bleu</option>
-                    <option value="bleu marine">Bleu marine</option>
-                    <option value="vert">Vert</option>
-                    <option value="jaune">Jaune</option>
-                    <option value="orange">Orange</option>
-                    <option value="rose">Rose</option>
-                    <option value="violet">Violet</option>
-                    <option value="marron">Marron</option>
-                    <option value="beige">Beige</option>
-                    <option value="or">Or</option>
-                    <option value="multicolore">Multicolore</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Taille</label>
-                <select id="size" onchange="updateDesc()">
-                    <option value="À préciser">À préciser</option>
-                    <option value="XS">XS</option>
-                    <option value="S">S</option>
-                    <option value="M">M</option>
-                    <option value="L">L</option>
-                    <option value="XL">XL</option>
-                    <option value="XXL">XXL</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>État *</label>
-                <select id="condition" onchange="updateDesc()">
-                    <option value="Neuf">Neuf</option>
-                    <option value="Très bon">Très bon</option>
-                    <option value="Bon" selected>Bon</option>
-                    <option value="Satisfaisant">Satisfaisant</option>
-                </select>
-            </div>
-            
-            <div class="info-box" style="background:#fff3cd;">
-                <strong>📄 Aperçu :</strong>
-                <p id="descPreview" style="margin-top:10px;font-style:italic;"></p>
-            </div>
-            
-            <button type="button" class="btn" onclick="generateFinal()">✨ Générer</button>
-        </div>
-        
-        <div class="result" id="result">
-            <h2>✅ Annonce générée</h2>
-            
-            <div class="info-box">
-                <strong>📝 Titre :</strong>
-                <p id="titre"></p>
-                <button class="copy-btn" onclick="copy('titre')">Copier</button>
-            </div>
-            
-            <div class="info-box price-box">
-                <strong>💰 Prix :</strong>
-                <p id="prix"></p>
-            </div>
-            
-            <div class="info-box">
-                <strong>📄 Description :</strong>
-                <p id="description"></p>
-                <button class="copy-btn" onclick="copy('description')">Copier</button>
-            </div>
-            
-            <button class="btn" onclick="location.reload()">🔄 Nouvelle</button>
+
+        <div class="error" id="error"></div>
+
+        <div class="result" id="result" style="display: none;">
+            <h3 id="resultTitle">📋 Résultat de l'analyse</h3>
+            <div id="resultContent"></div>
         </div>
     </div>
 
     <script>
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const previewContainer = document.getElementById('previewContainer');
-        const previewGrid = document.getElementById('previewGrid');
-        const form = document.getElementById('uploadForm');
-        
         let selectedFiles = [];
+        let currentLang = 'fr';
 
-        dropZone.onclick = () => fileInput.click();
+        const translations = {
+            fr: {
+                subtitle: "Téléchargez vos photos, le bot s'occupe du reste !",
+                uploadText: "Cliquez ou glissez vos photos ici",
+                uploadSubtext: "Plusieurs photos acceptées (PNG, JPG, JPEG, WEBP)",
+                btnText: "🚀 Analyser et créer l'annonce",
+                loadingText: "Analyse en cours...",
+                resultTitle: "📋 Résultat de l'analyse",
+                type: "Type",
+                brand: "Marque",
+                color: "Couleur",
+                condition: "État",
+                price: "Prix suggéré",
+                title: "Titre",
+                description: "Description"
+            },
+            en: {
+                subtitle: "Upload your photos, the bot takes care of the rest!",
+                uploadText: "Click or drag your photos here",
+                uploadSubtext: "Multiple photos accepted (PNG, JPG, JPEG, WEBP)",
+                btnText: "🚀 Analyze and create listing",
+                loadingText: "Analyzing...",
+                resultTitle: "📋 Analysis Result",
+                type: "Type",
+                brand: "Brand",
+                color: "Color",
+                condition: "Condition",
+                price: "Suggested Price",
+                title: "Title",
+                description: "Description"
+            },
+            es: {
+                subtitle: "¡Sube tus fotos, el bot se encarga del resto!",
+                uploadText: "Haz clic o arrastra tus fotos aquí",
+                uploadSubtext: "Varias fotos aceptadas (PNG, JPG, JPEG, WEBP)",
+                btnText: "🚀 Analizar y crear anuncio",
+                loadingText: "Analizando...",
+                resultTitle: "📋 Resultado del análisis",
+                type: "Tipo",
+                brand: "Marca",
+                color: "Color",
+                condition: "Estado",
+                price: "Precio sugerido",
+                title: "Título",
+                description: "Descripción"
+            },
+            de: {
+                subtitle: "Laden Sie Ihre Fotos hoch, der Bot kümmert sich um den Rest!",
+                uploadText: "Klicken oder ziehen Sie Ihre Fotos hierher",
+                uploadSubtext: "Mehrere Fotos akzeptiert (PNG, JPG, JPEG, WEBP)",
+                btnText: "🚀 Analysieren und Anzeige erstellen",
+                loadingText: "Analysiere...",
+                resultTitle: "📋 Analyseergebnis",
+                type: "Typ",
+                brand: "Marke",
+                color: "Farbe",
+                condition: "Zustand",
+                price: "Vorgeschlagener Preis",
+                title: "Titel",
+                description: "Beschreibung"
+            }
+        };
 
-        fileInput.addEventListener('change', function() {
-            selectedFiles = Array.from(this.files).slice(0, 8);
-            console.log('Files:', selectedFiles.length);
-            showPreviews();
+        function changeLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-lang="${lang}"]`).classList.add('active');
+            
+            const t = translations[lang];
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.getElementById('uploadText').textContent = t.uploadText;
+            document.getElementById('uploadSubtext').textContent = t.uploadSubtext;
+            document.getElementById('btnText').textContent = t.btnText;
+            document.getElementById('loadingText').textContent = t.loadingText;
+            document.getElementById('resultTitle').textContent = t.resultTitle;
+        }
+
+        const uploadZone = document.getElementById('uploadZone');
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
         });
-        
-        function showPreviews() {
-            if (selectedFiles.length === 0) return;
-            
-            previewContainer.style.display = 'block';
-            previewGrid.innerHTML = '';
-            
-            selectedFiles.forEach((file, i) => {
-                const div = document.createElement('div');
-                div.className = 'preview-item' + (i === 0 ? ' main' : '');
-                
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                
-                const label = document.createElement('div');
-                label.className = 'preview-label';
-                label.textContent = i === 0 ? 'PRINCIPALE' : 'Photo ' + (i + 1);
-                
-                div.appendChild(img);
-                div.appendChild(label);
-                previewGrid.appendChild(div);
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            displayPreviews();
+            document.getElementById('analyzeBtn').disabled = selectedFiles.length === 0;
+        }
+
+        function displayPreviews() {
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = '';
+
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview ${index + 1}">
+                        <button class="remove-btn" onclick="removeFile(${index})">×</button>
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
             });
         }
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            
-            if (selectedFiles.length === 0) {
-                alert('Sélectionnez au moins une photo !');
-                return;
-            }
-            
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displayPreviews();
+            document.getElementById('analyzeBtn').disabled = selectedFiles.length === 0;
+        }
+
+        async function analyzeImages() {
+            if (selectedFiles.length === 0) return;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+
             const formData = new FormData();
             selectedFiles.forEach(file => {
                 formData.append('images', file);
             });
-            
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('editForm').style.display = 'none';
-            document.getElementById('submitBtn').disabled = true;
+            formData.append('language', currentLang);
 
             try {
-                const res = await fetch('/analyze', {
-                    method: 'POST', 
+                const response = await fetch('/analyze', {
+                    method: 'POST',
                     body: formData
                 });
-                
-                const data = await res.json();
+
+                const data = await response.json();
 
                 if (data.success) {
-                    const priceRes = await fetch('/get_price', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({product_info: data.produit})
-                    });
-                    
-                    const priceData = await priceRes.json();
-                    
-                    if (priceData.success) {
-                        document.getElementById('suggestedPrice').textContent = 
-                            priceData.prix.prix_recommande + '€ (' + 
-                            priceData.prix.prix_min + '€ - ' + priceData.prix.prix_max + '€)';
-                    }
-                    
-                    document.getElementById('productType').value = data.produit.type;
-                    document.getElementById('brand').value = data.produit.marque !== 'À préciser' ? data.produit.marque : '';
-                    document.getElementById('color').value = data.produit.couleur;
-                    document.getElementById('size').value = data.produit.taille;
-                    document.getElementById('condition').value = data.produit.etat;
-                    
-                    updateDesc();
-                    document.getElementById('editForm').style.display = 'block';
+                    displayResult(data);
                 } else {
-                    alert('Erreur: ' + data.error);
+                    showError(data.error || 'Erreur inconnue');
                 }
             } catch (error) {
-                alert('Erreur: ' + error);
+                showError('Erreur de connexion: ' + error.message);
             } finally {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('submitBtn').disabled = false;
-            }
-        };
-
-        function updateDesc() {
-            const type = document.getElementById('productType').value;
-            const marque = document.getElementById('brand').value || '';
-            const couleur = document.getElementById('color').value || 'coloré';
-            
-            const m = marque ? marque + ' - ' : '';
-            const templates = {
-                'maillot': m + 'Maillot ' + couleur + ' authentique ! Excellent état. ⚽ Envoi rapide 📦',
-                'sac': m + 'Sac ' + couleur + ' élégant ! Très bon état. 👜 Envoi soigné 📦',
-                't-shirt': m + 'T-shirt ' + couleur + '. Bon état ! 👕 Envoi rapide 📦'
-            };
-            
-            document.getElementById('descPreview').textContent = templates[type] || templates['t-shirt'];
-        }
-
-        async function generateFinal() {
-            document.getElementById('loading').style.display = 'block';
-            
-            const productInfo = {
-                type: document.getElementById('productType').value,
-                marque: document.getElementById('brand').value || 'À préciser',
-                couleur: document.getElementById('color').value,
-                taille: document.getElementById('size').value,
-                etat: document.getElementById('condition').value,
-                matiere: 'À préciser',
-                details: 'Article'
-            };
-            
-            try {
-                const res = await fetch('/generate', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({product_info: productInfo})
-                });
-                
-                const data = await res.json();
-                
-                if (data.success) {
-                    document.getElementById('titre').textContent = data.annonce.titre;
-                    document.getElementById('prix').textContent = 
-                        data.annonce.prix + '€ (' + 
-                        data.annonce.prix_min + '€ - ' + data.annonce.prix_max + '€)';
-                    document.getElementById('description').textContent = data.annonce.description;
-                    
-                    document.getElementById('editForm').style.display = 'none';
-                    document.getElementById('result').style.display = 'block';
-                }
-            } catch (error) {
-                alert('Erreur: ' + error);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
             }
         }
 
-        function copy(id) {
-            const text = document.getElementById(id).textContent;
-            navigator.clipboard.writeText(text);
-            alert('✅ Copié !');
+        function displayResult(data) {
+            const t = translations[currentLang];
+            const content = document.getElementById('resultContent');
+            content.innerHTML = `
+                <div class="result-item"><strong>${t.type}:</strong> ${data.type}</div>
+                <div class="result-item"><strong>${t.brand}:</strong> ${data.marque}</div>
+                <div class="result-item"><strong>${t.color}:</strong> ${data.couleur}</div>
+                <div class="result-item"><strong>${t.condition}:</strong> ${data.etat}</div>
+                <div class="result-item"><strong>${t.price}:</strong> ${data.prix}€</div>
+                <div class="result-item"><strong>${t.title}:</strong> ${data.titre}</div>
+                <div class="result-item" style="white-space: pre-wrap;"><strong>${t.description}:</strong><br>${data.description}</div>
+            `;
+            document.getElementById('result').style.display = 'block';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
         }
     </script>
 </body>
 </html>
 """
 
+
 @app.route('/')
 def index():
-    return render_template_string(HTML)
+    return render_template_string(HTML_TEMPLATE)
+
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
+        if 'images' not in request.files:
+            return jsonify({'success': False, 'error': 'Aucune image fournie'}), 400
+
         files = request.files.getlist('images')
+        language = request.form.get('language', 'fr')
         
-        if not files:
-            return jsonify({'success': False, 'error': 'Aucune image'})
-        
-        print(f"🔥 {len(files)} photo(s) reçue(s)")
-        
+        if not files or files[0].filename == '':
+            return jsonify({'success': False, 'error': 'Aucune image sélectionnée'}), 400
+
+        # Sauvegarder et analyser les images
         image_paths = []
-        for i, file in enumerate(files[:8]):
-            filename = secure_filename(f"temp_{i}_{file.filename}")
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            image_paths.append(filepath)
-        
-        product_info = image_analyzer.analyze_multiple_products(image_paths)
-        
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                image_paths.append(filepath)
+
+        if not image_paths:
+            return jsonify({'success': False, 'error': 'Format d\'image invalide'}), 400
+
+        # Analyse
+        analyzer = ImageAnalyzer()
+        price_analyzer = PriceAnalyzer()
+        desc_generator = DescriptionGenerator()
+
+        result = analyzer.analyze_images(image_paths)
+        prix = price_analyzer.calculate_price(result['type'], result['marque'], result['etat'])
+        titre, description = desc_generator.generate(
+            result['type'], 
+            result['marque'], 
+            result['couleur'], 
+            result['etat'],
+            language
+        )
+
+        # Nettoyer les fichiers temporaires
         for path in image_paths:
             try:
                 os.remove(path)
             except:
                 pass
-        
-        return jsonify({'success': True, 'produit': product_info})
-        
-    except Exception as e:
-        print(f"❌ ERREUR: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/get_price', methods=['POST'])
-def get_price():
-    try:
-        data = request.get_json()
-        price_info = price_analyzer.calculate_optimal_price(data['product_info'])
-        return jsonify({'success': True, 'prix': price_info})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({
+            'success': True,
+            'type': result['type'],
+            'marque': result['marque'],
+            'couleur': result['couleur'],
+            'etat': result['etat'],
+            'prix': prix,
+            'titre': titre,
+            'description': description
+        })
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    try:
-        data = request.get_json()
-        product_info = data['product_info']
-        price_info = price_analyzer.calculate_optimal_price(product_info)
-        listing = desc_generator.create_full_listing(product_info, price_info)
-        return jsonify({'success': True, 'annonce': listing})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=5000)
