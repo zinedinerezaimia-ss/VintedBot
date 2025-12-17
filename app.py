@@ -1,5 +1,5 @@
 """
-Bot Vinted Multilingue - Version finale
+Bot Vinted Multilingue - Version COMPLÈTE avec édition
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -315,11 +315,41 @@ HTML_TEMPLATE = """
             color: #667eea;
             margin-bottom: 15px;
         }
-        .result-item {
-            margin: 10px 0;
-            padding: 10px;
+        .editable-field {
+            margin: 15px 0;
+            padding: 15px;
             background: white;
             border-radius: 8px;
+            border: 2px solid #e8ebff;
+        }
+        .editable-field label {
+            display: block;
+            font-weight: bold;
+            color: #764ba2;
+            margin-bottom: 8px;
+        }
+        .editable-field input,
+        .editable-field textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .editable-field textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .copy-btn {
+            margin-top: 8px;
+            width: auto;
+            padding: 8px 15px;
+            background: #667eea;
+            font-size: 14px;
+        }
+        .copy-btn:hover {
+            background: #764ba2;
         }
         .loading {
             display: none;
@@ -344,7 +374,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h1>🤖 Vinted Bot</h1>
-        <p class="subtitle" id="subtitle">Téléchargez vos photos !</p>
+        <p class="subtitle">Téléchargez vos photos, modifiez et copiez le résultat !</p>
         
         <div class="lang-selector">
             <button class="lang-btn active" onclick="changeLang('fr')">🇫🇷</button>
@@ -355,7 +385,7 @@ HTML_TEMPLATE = """
 
         <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
             <p style="font-size: 48px;">📸</p>
-            <p id="uploadText">Cliquez ou glissez vos photos ici</p>
+            <p>Cliquez ou glissez vos photos ici</p>
         </div>
 
         <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(this.files)">
@@ -368,8 +398,49 @@ HTML_TEMPLATE = """
         </div>
 
         <div class="result" id="result" style="display: none;">
-            <h3>📋 Résultat</h3>
-            <div id="resultContent"></div>
+            <h3>📋 Résultat (modifiable)</h3>
+            
+            <div class="editable-field">
+                <label>Type :</label>
+                <input type="text" id="typeField">
+                <button class="copy-btn" onclick="copyField('typeField')">📋 Copier</button>
+            </div>
+
+            <div class="editable-field">
+                <label>Marque :</label>
+                <input type="text" id="marqueField">
+                <button class="copy-btn" onclick="copyField('marqueField')">📋 Copier</button>
+            </div>
+
+            <div class="editable-field">
+                <label>Couleur :</label>
+                <input type="text" id="couleurField">
+                <button class="copy-btn" onclick="copyField('couleurField')">📋 Copier</button>
+            </div>
+
+            <div class="editable-field">
+                <label>État :</label>
+                <input type="text" id="etatField">
+                <button class="copy-btn" onclick="copyField('etatField')">📋 Copier</button>
+            </div>
+
+            <div class="editable-field">
+                <label>Prix :</label>
+                <input type="text" id="prixField">
+                <button class="copy-btn" onclick="copyField('prixField')">📋 Copier</button>
+            </div>
+
+            <div class="editable-field">
+                <label>Titre :</label>
+                <input type="text" id="titreField">
+                <button class="copy-btn" onclick="copyField('titreField')">📋 Copier</button>
+            </div>
+
+            <div class="editable-field">
+                <label>Description :</label>
+                <textarea id="descriptionField"></textarea>
+                <button class="copy-btn" onclick="copyField('descriptionField')">📋 Copier</button>
+            </div>
         </div>
     </div>
 
@@ -426,15 +497,13 @@ HTML_TEMPLATE = """
                 });
                 const data = await response.json();
                 if (data.success) {
-                    document.getElementById('resultContent').innerHTML = `
-                        <div class="result-item"><strong>Type:</strong> ${data.type}</div>
-                        <div class="result-item"><strong>Marque:</strong> ${data.marque}</div>
-                        <div class="result-item"><strong>Couleur:</strong> ${data.couleur}</div>
-                        <div class="result-item"><strong>État:</strong> ${data.etat}</div>
-                        <div class="result-item"><strong>Prix:</strong> ${data.prix}€</div>
-                        <div class="result-item"><strong>Titre:</strong> ${data.titre}</div>
-                        <div class="result-item"><strong>Description:</strong><br>${data.description}</div>
-                    `;
+                    document.getElementById('typeField').value = data.type;
+                    document.getElementById('marqueField').value = data.marque;
+                    document.getElementById('couleurField').value = data.couleur;
+                    document.getElementById('etatField').value = data.etat;
+                    document.getElementById('prixField').value = data.prix + '€';
+                    document.getElementById('titreField').value = data.titre;
+                    document.getElementById('descriptionField').value = data.description;
                     document.getElementById('result').style.display = 'block';
                 }
             } catch (error) {
@@ -443,6 +512,19 @@ HTML_TEMPLATE = """
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('analyzeBtn').disabled = false;
             }
+        }
+
+        function copyField(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.select();
+            document.execCommand('copy');
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copié !';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
         }
     </script>
 </body>
