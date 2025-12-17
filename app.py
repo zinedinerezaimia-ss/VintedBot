@@ -410,22 +410,28 @@ HTML_TEMPLATE = """
         });
 
         fileInput.addEventListener('change', (e) => {
-            handleFiles(e.target.files);
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
         });
 
         function handleFiles(files) {
+            if (!files || files.length === 0) return;
+            
             selectedFiles = Array.from(files).slice(0, 8);
             photosPreview.innerHTML = '';
             
             selectedFiles.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const div = document.createElement('div');
-                    div.className = 'photo-item' + (index === 0 ? ' main' : '');
-                    div.innerHTML = `<img src="${e.target.result}">`;
-                    photosPreview.appendChild(div);
-                };
-                reader.readAsDataURL(file);
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const div = document.createElement('div');
+                        div.className = 'photo-item' + (index === 0 ? ' main' : '');
+                        div.innerHTML = `<img src="${e.target.result}" alt="Photo ${index + 1}">`;
+                        photosPreview.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                }
             });
 
             analyzeBtn.disabled = selectedFiles.length === 0;
