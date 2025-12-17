@@ -6,7 +6,7 @@ Génération de titres et descriptions attractifs pour Vinted
 import random
 from .translations import TRANSLATIONS
 
-def generate_listing(item_type, colors, condition, brand=None, language='fr'):
+def generate_listing(item_type, colors, condition, brand=None, language='fr', price=None):
     """
     Génère un titre et une description optimisés pour Vinted
     
@@ -16,6 +16,7 @@ def generate_listing(item_type, colors, condition, brand=None, language='fr'):
         condition: État
         brand: Marque (optionnel)
         language: Langue ('fr', 'en', 'es', 'de')
+        price: Prix suggéré (optionnel)
         
     Returns:
         tuple: (title, description)
@@ -32,7 +33,7 @@ def generate_listing(item_type, colors, condition, brand=None, language='fr'):
     
     # ===== GÉNÉRATION DE LA DESCRIPTION =====
     description = generate_description(
-        type_name, color_name, condition_name, brand, trans
+        type_name, color_name, condition_name, brand, trans, price
     )
     
     return title, description
@@ -65,16 +66,17 @@ def generate_title(item_type, color, brand, trans):
     return random.choice(templates).strip()
 
 
-def generate_description(item_type, color, condition, brand, trans):
+def generate_description(item_type, color, condition, brand, trans, price=None):
     """
     Génère une description complète et engageante
     
     Structure optimale :
     1. Phrase d'accroche
     2. Détails du produit
-    3. État et entretien
-    4. Informations pratiques
-    5. Appel à l'action
+    3. Prix (si fourni)
+    4. État et entretien
+    5. Informations pratiques
+    6. Appel à l'action
     """
     
     # 1. PHRASE D'ACCROCHE
@@ -91,21 +93,23 @@ def generate_description(item_type, color, condition, brand, trans):
         condition=condition
     )
     
-    # 2. DÉTAILS MARQUE
+    # 2. DÉTAILS MARQUE (correction: pas de répétition)
     if brand:
         brand_section = trans.get('brand_texts', {
             'with_brand': "Marque : {brand}.\nAuthentique et de qualité.",
-            'no_brand': "Marque non identifiée."
         })['with_brand'].format(brand=brand)
     else:
-        brand_section = trans.get('brand_texts', {
-            'no_brand': "Article de qualité."
-        })['no_brand']
+        brand_section = None  # On ne met rien si pas de marque
     
     # 3. DÉTAILS SPÉCIFIQUES AU TYPE
     type_details = get_type_specific_details(item_type, trans)
     
-    # 4. ÉTAT ET ENTRETIEN
+    # 4. PRIX (si fourni)
+    price_section = None
+    if price:
+        price_section = f"💰 Prix : {price}"
+    
+    # 5. ÉTAT ET ENTRETIEN
     condition_details = trans.get('condition_details', {
         'neuf': "État neuf avec étiquette. Jamais porté.",
         'très bon': "Très bon état. Porté avec soin.",
@@ -113,7 +117,7 @@ def generate_description(item_type, color, condition, brand, trans):
         'satisfaisant': "État satisfaisant. Traces d'utilisation visibles."
     }).get(condition, "Bon état général.")
     
-    # 5. INFOS PRATIQUES
+    # 6. INFOS PRATIQUES
     practical_info = trans.get('practical_info', [
         "📦 Envoi rapide et soigné sous 24-48h.",
         "🚚 Expédition rapide et protégée.",
@@ -122,7 +126,7 @@ def generate_description(item_type, color, condition, brand, trans):
     
     practical = random.choice(practical_info)
     
-    # 6. APPEL À L'ACTION
+    # 7. APPEL À L'ACTION
     cta = trans.get('cta', [
         "N'hésitez pas à me contacter pour plus d'infos ou de photos ! 😊",
         "Des questions ? Contactez-moi, je réponds rapidement ! 💬",
@@ -131,11 +135,12 @@ def generate_description(item_type, color, condition, brand, trans):
     
     closing = random.choice(cta)
     
-    # ASSEMBLAGE
+    # ASSEMBLAGE (on filtre None pour éviter les sections vides)
     sections = [
         intro,
         brand_section,
         type_details,
+        price_section,
         condition_details,
         practical,
         closing
