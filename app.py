@@ -74,13 +74,15 @@ def analyze():
         # Prendre le premier résultat comme principal
         main = results[0] if results else {}
         
-        # Générer titre et description
+        # Générer titre et description (avec le prix)
+        price_range = main.get('price', '')
         title, description = generate_listing(
             main.get('type', 't-shirt'),
             main.get('colors', ['noir']),
             main.get('condition', 'bon'),
             main.get('brand'),
-            language
+            language,
+            price_range  # On passe le prix
         )
         
         print(f"✅ Analyse terminée: {main.get('type')} {main.get('colors')}")
@@ -99,6 +101,43 @@ def analyze():
         print(f"❌ Erreur analyse: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/generate_text', methods=['POST'])
+def generate_text():
+    """Régénère titre et description sans reanalyser les photos"""
+    if not MODULES_LOADED:
+        return jsonify({"error": "Modules non chargés"}), 500
+    
+    try:
+        data = request.json
+        item_type = data.get('type', 't-shirt')
+        brand = data.get('brand') or None
+        color = data.get('color', 'noir')
+        condition = data.get('condition', 'bon')
+        language = data.get('language', 'fr')
+        
+        # Recalculer le prix
+        price_min, price_max = get_price_range(item_type, brand, condition)
+        price_range = f"{price_min}€ - {price_max}€"
+        
+        title, description = generate_listing(
+            item_type,
+            [color],
+            condition,
+            brand,
+            language,
+            price_range  # On passe le prix
+        )
+        
+        return jsonify({
+            'title': title,
+            'description': description,
+            'price': price_range
+        })
+        
+    except Exception as e:
+        print(f"❌ Erreur génération: {e}")
         return jsonify({"error": str(e)}), 500
 
 # ===== HTML TEMPLATE =====
@@ -508,6 +547,39 @@ HTML_TEMPLATE = """
                 analyzeBtn.disabled = false;
             }
         });
+
+        // Régénérer quand on modifie les champs
+        ['typeInput', 'brandInput', 'colorInput', 'conditionInput'].forEach(id => {
+            document.getElementById(id).addEventListener('change', regenerateDescription);
+        });
+
+        async function regenerateDescription() {
+            const type = document.getElementById('typeInput').value;
+            const brand = document.getElementById('brandInput').value;
+            const color = document.getElementById('colorInput').value;
+            const condition = document.getElementById('conditionInput').value;
+            const language = document.getElementById('language').value;
+
+            // Régénérer localement (sans renvoyer les photos)
+            try {
+                const response = await fetch('/generate_text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, brand, color, condition, language })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('titleResult').value = data.title;
+                    document.getElementById('descriptionResult').value = data.description;
+                    if (data.price) {
+                        document.getElementById('priceResult').textContent = data.price;
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur régénération:', error);
+            }
+        }
 
         // Copier
         document.getElementById('copyBtn').addEventListener('click', () => {
