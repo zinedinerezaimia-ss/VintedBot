@@ -283,7 +283,7 @@ HTML_TEMPLATE = """
             <p style="color: #999; font-size: 13px;">Jusqu'à 8 photos • Toutes seront analysées</p>
         </div>
 
-        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;" tabindex="-1">
 
         <div class="photos-preview" id="photosPreview"></div>
 
@@ -392,7 +392,12 @@ HTML_TEMPLATE = """
         const results = document.getElementById('results');
         let selectedFiles = [];
 
-        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInput.click();
+            console.log('Zone cliquée, ouverture du sélecteur...');
+        });
 
         uploadZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -410,6 +415,7 @@ HTML_TEMPLATE = """
         });
 
         fileInput.addEventListener('change', (e) => {
+            console.log('Fichiers sélectionnés:', e.target.files.length);
             if (e.target.files.length > 0) {
                 handleFiles(e.target.files);
             }
