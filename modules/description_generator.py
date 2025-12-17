@@ -1,95 +1,223 @@
+# modules/description_generator.py
 """
-Générateur de descriptions
+Génération de titres et descriptions attractifs pour Vinted
 """
 
 import random
+from .translations import TRANSLATIONS
 
-class DescriptionGenerator:
+def generate_listing(item_type, colors, condition, brand=None, language='fr'):
+    """
+    Génère un titre et une description optimisés pour Vinted
     
-    def __init__(self):
-        self.templates = {
-            "maillot": [
-                "{m}Maillot {c} authentique ! {e}, porté peu. Matière respirante. Logo et écusson en parfait état. Parfait pour les vrais fans ! ⚽ Taille {t}. Envoi rapide 📦",
-                "{m}Superbe maillot {c} ! {e}. Matière technique confortable. Pour les collectionneurs et supporters ! ⚽ Taille {t}. Expédition soignée 📦"
-            ],
-            "t-shirt": [
-                "{m}T-shirt {c} classique. {e}, porté peu. Coupe confortable. Basique indispensable ! 👕 Taille {t}. Envoi rapide 📦",
-                "{m}Joli t-shirt {c}. {e}. S'associe avec tout ! 👕 Taille {t}. Expédition soignée 📦"
-            ],
-            "pantalon": [
-                "{m}Pantalon {c} élégant. {e}. Coupe moderne, très confortable ! 👖 Taille {t}. Envoi rapide 📦",
-                "{m}Super pantalon {c} ! {e}. Parfait au quotidien ! 👖 Taille {t}. Expédition soignée 📦"
-            ],
-            "chaussures": [
-                "{m}Chaussures {c} stylées ! {e}. Semelle en bon état, très confortables ! 👟 Pointure {t}. Envoi protégé 📦",
-                "{m}Paire de chaussures {c}. {e}. Maintien parfait ! 👟 Pointure {t}. Expédition soignée 📦"
-            ],
-            "basket": [
-                "{m}Basket {c} tendance ! {e}. Design moderne, confort optimal ! 👟 Pointure {t}. Envoi protégé 📦",
-                "{m}Superbes baskets {c} ! {e}. Style streetwear ! 👟 Pointure {t}. Expédition soignée 📦"
-            ],
-            "sac": [
-                "{m}Sac à main {c} élégant ! {e}. Plusieurs compartiments pratiques. Style intemporel ! 👜 Envoi rapide 📦",
-                "{m}Joli sac {c} polyvalent ! {e}. Très pratique au quotidien ! 👜 Expédition soignée 📦"
-            ],
-            "pull": [
-                "{m}Pull {c} tout doux ! {e}. Très confortable et chaud ! 🧶 Taille {t}. Envoi rapide 📦",
-                "{m}Joli pull {c} chaleureux ! {e}. Parfait automne-hiver ! 🧶 Taille {t}. Expédition soignée 📦"
-            ]
-        }
+    Args:
+        item_type: Type de vêtement
+        colors: Liste des couleurs
+        condition: État
+        brand: Marque (optionnel)
+        language: Langue ('fr', 'en', 'es', 'de')
+        
+    Returns:
+        tuple: (title, description)
+    """
+    trans = TRANSLATIONS.get(language, TRANSLATIONS['fr'])
     
-    def generate_title(self, info):
-        """Génère le titre"""
-        parts = []
-        
-        if info.get('marque') not in ['À préciser', '']:
-            parts.append(info['marque'])
-        
-        parts.append(info['type'].capitalize())
-        
-        if info.get('couleur'):
-            parts.append(info['couleur'])
-        
-        if info.get('taille') != 'À préciser':
-            parts.append(f"T.{info['taille']}")
-        
-        return " ".join(parts)[:80]
+    # Traductions
+    type_name = trans['types'].get(item_type, item_type)
+    color_name = trans['colors'].get(colors[0], colors[0]) if colors else 'multicolore'
+    condition_name = trans['conditions'].get(condition, condition)
     
-    def generate_description(self, info, price_info):
-        """Génère la description"""
-        product_type = info['type'].lower()
-        
-        templates = self.templates.get(product_type, self.templates['t-shirt'])
-        template = random.choice(templates)
-        
-        marque = info.get('marque', '')
-        m = f"{marque} - " if marque not in ['À préciser', ''] else ""
-        
-        c = info.get('couleur', 'coloré')
-        
-        etat_map = {
-            'Neuf': 'Neuf avec étiquette',
-            'Très bon': 'Excellent état',
-            'Bon': 'Très bon état',
-            'Satisfaisant': 'Bon état'
-        }
-        e = etat_map.get(info.get('etat', 'Bon'), 'Bon état')
-        
-        taille = info.get('taille', 'À préciser')
-        t = taille if taille != 'À préciser' else 'voir photos'
-        
-        try:
-            description = template.format(m=m, c=c, e=e, t=t)
-            return description[:500]
-        except:
-            return f"{m}{product_type.capitalize()} {c}. {e}. Taille {t}. Envoi rapide ! 📦"
+    # ===== GÉNÉRATION DU TITRE =====
+    title = generate_title(type_name, color_name, brand, trans)
     
-    def create_full_listing(self, info, price_info):
-        """Crée l'annonce complète"""
-        return {
-            "titre": self.generate_title(info),
-            "description": self.generate_description(info, price_info),
-            "prix": price_info['prix_recommande'],
-            "prix_min": price_info['prix_min'],
-            "prix_max": price_info['prix_max']
-        }
+    # ===== GÉNÉRATION DE LA DESCRIPTION =====
+    description = generate_description(
+        type_name, color_name, condition_name, brand, trans
+    )
+    
+    return title, description
+
+
+def generate_title(item_type, color, brand, trans):
+    """
+    Génère un titre accrocheur
+    
+    Format optimal pour Vinted :
+    - Max 100 caractères
+    - Inclut : Marque + Type + Couleur
+    - Mots-clés importants au début
+    """
+    if brand:
+        # Avec marque : "Nike Sweat noir" ou "Sweat Nike noir"
+        templates = [
+            f"{brand} {item_type} {color}",
+            f"{item_type} {brand} {color}",
+            f"{brand} - {item_type} {color}"
+        ]
+    else:
+        # Sans marque : "Sweat noir" ou "Beau sweat noir"
+        templates = [
+            f"{item_type} {color}",
+            f"{trans.get('adjectives', ['Beau'])[0]} {item_type} {color}",
+            f"{item_type} {color} {trans.get('style_words', ['stylé'])[0]}"
+        ]
+    
+    return random.choice(templates).strip()
+
+
+def generate_description(item_type, color, condition, brand, trans):
+    """
+    Génère une description complète et engageante
+    
+    Structure optimale :
+    1. Phrase d'accroche
+    2. Détails du produit
+    3. État et entretien
+    4. Informations pratiques
+    5. Appel à l'action
+    """
+    
+    # 1. PHRASE D'ACCROCHE
+    intros = trans.get('intros', [
+        "Magnifique {item} {color} en {condition}.",
+        "Superbe {item} {color}, {condition}.",
+        "{item} {color} en {condition}."
+    ])
+    
+    intro_template = random.choice(intros)
+    intro = intro_template.format(
+        item=item_type,
+        color=color,
+        condition=condition
+    )
+    
+    # 2. DÉTAILS MARQUE
+    if brand:
+        brand_section = trans.get('brand_texts', {
+            'with_brand': "Marque : {brand}.\nAuthentique et de qualité.",
+            'no_brand': "Marque non identifiée."
+        })['with_brand'].format(brand=brand)
+    else:
+        brand_section = trans.get('brand_texts', {
+            'no_brand': "Article de qualité."
+        })['no_brand']
+    
+    # 3. DÉTAILS SPÉCIFIQUES AU TYPE
+    type_details = get_type_specific_details(item_type, trans)
+    
+    # 4. ÉTAT ET ENTRETIEN
+    condition_details = trans.get('condition_details', {
+        'neuf': "État neuf avec étiquette. Jamais porté.",
+        'très bon': "Très bon état. Porté avec soin.",
+        'bon': "Bon état général. Quelques signes d'usage normaux.",
+        'satisfaisant': "État satisfaisant. Traces d'utilisation visibles."
+    }).get(condition, "Bon état général.")
+    
+    # 5. INFOS PRATIQUES
+    practical_info = trans.get('practical_info', [
+        "📦 Envoi rapide et soigné sous 24-48h.",
+        "🚚 Expédition rapide et protégée.",
+        "✅ Envoi le jour même si commande avant 14h."
+    ])
+    
+    practical = random.choice(practical_info)
+    
+    # 6. APPEL À L'ACTION
+    cta = trans.get('cta', [
+        "N'hésitez pas à me contacter pour plus d'infos ou de photos ! 😊",
+        "Des questions ? Contactez-moi, je réponds rapidement ! 💬",
+        "Possibilité de négocier le prix, faites une offre ! 💰"
+    ])
+    
+    closing = random.choice(cta)
+    
+    # ASSEMBLAGE
+    sections = [
+        intro,
+        brand_section,
+        type_details,
+        condition_details,
+        practical,
+        closing
+    ]
+    
+    description = "\n\n".join(filter(None, sections))
+    
+    return description
+
+
+def get_type_specific_details(item_type, trans):
+    """
+    Retourne des détails spécifiques selon le type d'article
+    """
+    details_map = {
+        'pull': trans.get('type_details', {}).get('pull', "Parfait pour les saisons froides. Coupe confortable."),
+        'sweat': trans.get('type_details', {}).get('sweat', "Idéal pour un look décontracté. Confortable et chaud."),
+        't-shirt': trans.get('type_details', {}).get('t-shirt', "Basique indispensable. Facile à porter au quotidien."),
+        'chaussures': trans.get('type_details', {}).get('chaussures', "Confortables et stylées. Semelle en bon état."),
+        'sac': trans.get('type_details', {}).get('sac', "Pratique et élégant. Plusieurs compartiments."),
+        'pantalon': trans.get('type_details', {}).get('pantalon', "Coupe moderne. S'adapte à toutes les morphologies."),
+        'jean': trans.get('type_details', {}).get('jean', "Denim de qualité. Coupe tendance."),
+        'veste': trans.get('type_details', {}).get('veste', "Pièce polyvalente. Parfaite pour la mi-saison."),
+        'maillot': trans.get('type_details', {}).get('maillot', "Pièce collector pour les fans ! Floquage en bon état.")
+    }
+    
+    return details_map.get(item_type, "Article de qualité.")
+
+
+def generate_hashtags(item_type, brand, colors):
+    """
+    Génère des hashtags pertinents (pour Instagram ou description)
+    
+    Returns:
+        str: Chaîne de hashtags
+    """
+    tags = []
+    
+    # Type
+    tags.append(f"#{item_type}")
+    
+    # Marque
+    if brand:
+        tags.append(f"#{brand.replace(' ', '')}")
+    
+    # Couleurs
+    for color in colors:
+        tags.append(f"#{color}")
+    
+    # Tags génériques populaires
+    generic_tags = [
+        "#vinted", "#secondemain", "#vintedbelgique", "#vintedfrance",
+        "#mode", "#fashion", "#stylé", "#tendance"
+    ]
+    
+    tags.extend(random.sample(generic_tags, 3))
+    
+    return " ".join(tags)
+
+
+def optimize_for_search(title, description):
+    """
+    Optimise le titre et la description pour le SEO Vinted
+    
+    Tips :
+    - Mots-clés au début
+    - Pas de caractères spéciaux excessifs
+    - Longueur optimale
+    
+    Returns:
+        tuple: (optimized_title, optimized_description)
+    """
+    # Nettoyer le titre
+    title = title.strip()
+    title = " ".join(title.split())  # Supprimer espaces multiples
+    
+    # Limiter à 100 caractères
+    if len(title) > 100:
+        title = title[:97] + "..."
+    
+    # Description : max 1000 caractères pour Vinted
+    if len(description) > 1000:
+        description = description[:997] + "..."
+    
+    return title, description
